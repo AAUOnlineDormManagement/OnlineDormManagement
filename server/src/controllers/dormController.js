@@ -12,11 +12,6 @@ async function getOcrScheduler() {
   if (ocrInitPromise) return ocrInitPromise;
 
   ocrInitPromise = (async () => {
-    // Timeout for worker initialization (Vercel cold start can be slow)
-    const initTimeout = new Promise((_, reject) => 
-      setTimeout(() => reject(new Error('SCHEDULER_INIT_TIMEOUT')), 10000)
-    );
-
     try {
       console.log('🏗️  Initializing OCR Singleton Scheduler (3 Workers)...');
       const tempScheduler = createScheduler();
@@ -25,7 +20,14 @@ async function getOcrScheduler() {
       const p2 = createWorker('eng');
       const p3 = createWorker('eng');
       
-      const workers = await Promise.all([p1, p2, p3]);
+      // Use a longer timeout or just proceed with the workers
+      const workers = await Promise.race([
+        Promise.all([p1, p2, p3]),
+        new Promise((_, reject) => 
+          setTimeout(() => reject(new Error('SCHEDULER_WORKER_TIMEOUT')), 60000)
+        )
+      ]);
+      
       workers.forEach(w => tempScheduler.addWorker(w));
       
       ocrScheduler = tempScheduler;
