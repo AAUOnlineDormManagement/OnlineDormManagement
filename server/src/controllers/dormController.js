@@ -338,7 +338,8 @@ const submitApplication = async (req, res) => {
       });
     }
 
-    const reason = String(req.body.reason || 'Dorm placement request').trim();
+    const { reason, isStaffRelated, isSpecialNeed } = req.body;
+    const reasonStr = String(reason || 'Dorm placement request').trim();
     // CITY INPUT REMOVED: Detection is now automated via OCR
 
     const frontFile = req.files?.fydaFront?.[0] || req.files?.nationalIdFront?.[0];
@@ -350,6 +351,11 @@ const submitApplication = async (req, res) => {
 
     const student = await Student.findOne({ user: req.user._id }).populate('user');
     if (!student) return res.status(404).json({ success: false, message: 'Student not found' });
+
+    // Update student with checkbox values
+    student.isStaffRelated = isStaffRelated === 'true' || isStaffRelated === true;
+    student.isSpecialNeed = isSpecialNeed === 'true' || isSpecialNeed === true;
+    await student.save();
 
     // === PARALLEL: OCR & Payment Initialization ===
     // Strict validation:
@@ -432,34 +438,41 @@ const submitApplication = async (req, res) => {
     let foundRoom = null;
     let foundCampus = null;
 
-    if (isAddis) {
-      // OCR-based city policy:
-      // - Addis Ababa => 5 min default
-      // - Shager => 3 min default
-      // - If admin opened applications for campus, waits use window-linked minutes.
-      status = 'Waiting';
-      scheduledReleaseAt = new Date(Date.now() + waitMs);
+    if (student.isStaffRelated) {
+      // Staff-related students require admin approval
+      status = 'Under Review';
       paymentStatus = isSelfSponsored ? 'Pending' : 'NotRequired';
     } else {
-      // Outside Addis residents get immediate room check
-      const { room, campus } = await findRoomForStudent(student, student.isSpecialNeed);
-      if (room) {
-        foundRoom = room;
-        foundCampus = campus;
-        if (isSelfSponsored) {
-          status = 'PaymentPending';
-          paymentStatus = 'Pending';
-          try {
-            paymentInfo = await initializeChapaPayment(student, 3000);
-          } catch (e) {
-            console.error('Chapa init failed:', e.message);
+      // Normal flow for non-staff-related students
+      if (isAddis) {
+        // OCR-based city policy:
+        // - Addis Ababa => 5 min default
+        // - Shager => 3 min default
+        // - If admin opened applications for campus, waits use window-linked minutes.
+        status = 'Waiting';
+        scheduledReleaseAt = new Date(Date.now() + waitMs);
+        paymentStatus = isSelfSponsored ? 'Pending' : 'NotRequired';
+      } else {
+        // Outside Addis residents get immediate room check
+        const { room, campus } = await findRoomForStudent(student, student.isSpecialNeed);
+        if (room) {
+          foundRoom = room;
+          foundCampus = campus;
+          if (isSelfSponsored) {
+            status = 'PaymentPending';
+            paymentStatus = 'Pending';
+            try {
+              paymentInfo = await initializeChapaPayment(student, 3000);
+            } catch (e) {
+              console.error('Chapa init failed:', e.message);
+            }
+          } else {
+            status = 'Assigned';
+            paymentStatus = 'NotRequired';
           }
         } else {
-          status = 'Assigned';
-          paymentStatus = 'NotRequired';
+          status = 'Pending'; 
         }
-      } else {
-        status = 'Pending'; 
       }
     }
 
@@ -479,7 +492,7 @@ const submitApplication = async (req, res) => {
 
     const appPayload = {
       student: student._id,
-      reason,
+      reason: reasonStr,
       city: finalCity,
       nationalIdFront: normFront,
       nationalIdBack: normBack,
@@ -529,6 +542,8 @@ const submitApplication = async (req, res) => {
       message = `Room found (${foundRoom?.building?.name || ''} - ${foundRoom?.roomNumber || ''}) on ${foundCampus || 'assigned'} campus. Please complete your payment to finalize assignment.`;
     } else if (application.status === 'Assigned') {
       message = `Success! Room ${application.assignedRoom?.roomNumber || ''} has been assigned.`;
+    } else if (application.status === 'Under Review') {
+      message = `Your application has been submitted and is under review by the administration due to staff relation. You will be notified once reviewed.`;
     }
 
     const appObj = application.toObject();
