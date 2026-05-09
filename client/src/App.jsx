@@ -1,4 +1,5 @@
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
+import { useEffect } from 'react';
 import Home from './pages/Home';
 import Login from './pages/Login';
 import ForgotPassword from './pages/ForgotPassword';
@@ -63,6 +64,12 @@ import { ThemeProvider } from './context/ThemeContext';
 import './App.css';
 
 function App() {
+  useEffect(() => {
+    if (window.top !== window) {
+      window.top.location.href = window.location.href;
+    }
+  }, []);
+
   return (
     <ThemeProvider>
       <Router>
