@@ -58,6 +58,9 @@ export const dormApi = {
       const response = await api.get('/dorm/application');
       const data = response.data;
       if (data && typeof data === 'object' && 'application' in data) {
+        if (data.chapaPaymentUrl && data.application) {
+          data.application.chapaPaymentUrl = data.chapaPaymentUrl;
+        }
         return data.application;
       }
       if (data && data._id) return data;

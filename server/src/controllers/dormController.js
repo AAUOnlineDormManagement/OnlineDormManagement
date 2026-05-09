@@ -577,9 +577,12 @@ const getMyApplication = async (req, res) => {
                 application.status = 'PaymentPending';
                 application.scheduledReleaseAt = null;
                 // Initialize Chapa now that we confirmed a room exists
+                let chapaPaymentUrl = null;
                 try {
                    const paymentInfo = await initializeChapaPayment(student, 3000);
                    application.chapaTxRef = paymentInfo?.tx_ref || null;
+                   chapaPaymentUrl = paymentInfo?.checkout_url || null;
+                   application.chapaPaymentUrl = chapaPaymentUrl; // Temporary for response
                 } catch (pe) {
                    console.error('Chapa init error in polling:', pe.message);
                 }
@@ -641,7 +644,8 @@ const getMyApplication = async (req, res) => {
     return res.json({ 
       success: true, 
       application: appObj, 
-      deploymentVersion: '2026-04-26-v6-OBJECT-FIX' 
+      chapaPaymentUrl: application.chapaPaymentUrl || null,
+      deploymentVersion: '2026-05-09-v7-AUTO-REDIRECT' 
     });
   } catch (err) {
     console.error(err);

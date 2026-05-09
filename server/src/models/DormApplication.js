@@ -79,6 +79,10 @@ const dormApplicationSchema = new mongoose.Schema(
       type: String,
       default: null,
     },
+    chapaTxRef: {
+      type: String,
+      default: null,
+    },
     status: {
       type: String,
       enum: ['Pending', 'Waiting', 'Assigned', 'PaymentPending', 'Rejected', 'Under Review', 'Approved'],

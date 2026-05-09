@@ -46,6 +46,13 @@ export default function AdminDashboard() {
   const [overview, setOverview] = useState(null);
   const user = authApi.getCurrentUser();
 
+  useEffect(() => {
+    // If student tries to access admin dashboard, redirect to student portal
+    if (user?.role === 'Student') {
+      window.location.href = '/student-portal';
+    }
+  }, [user]);
+
   const [recentReports, setRecentReports] = useState([]);
 
   useEffect(() => {

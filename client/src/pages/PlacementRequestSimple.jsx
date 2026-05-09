@@ -314,6 +314,27 @@ export default function PlacementRequestSimple() {
       setTimeLeft(null);
     }
   }, [existingApp]);
+  
+  // Effect for Auto-Redirect to Chapa (Wait -> Payment)
+  useEffect(() => {
+    if (existingApp?.status === 'PaymentPending' && existingApp.chapaPaymentUrl) {
+      console.log('🚀 Triggering auto-redirect to Chapa:', existingApp.chapaPaymentUrl);
+      const redirectToast = toast.loading('Room found! Redirecting to Chapa Secure Gateway...', { 
+        icon: '💰',
+        duration: 5000 
+      });
+      
+      const timer = setTimeout(() => {
+        toast.dismiss(redirectToast);
+        window.location.href = existingApp.chapaPaymentUrl;
+      }, 3000);
+      
+      return () => {
+        clearTimeout(timer);
+        toast.dismiss(redirectToast);
+      };
+    }
+  }, [existingApp?.status, existingApp?.chapaPaymentUrl]);
 
   // Effect for Independent Payment Verification
   useEffect(() => {
@@ -354,18 +375,18 @@ export default function PlacementRequestSimple() {
             }
             
             // Clear search params and fallback to prevent duplicate triggers
-            toast.success('Payment verified! Redirecting to dashboard...', { id: verifToast });
+            toast.success('Payment verified! Your dorm room is now assigned.', { id: verifToast, duration: 6000 });
             localStorage.removeItem('pending_chapa_tx_ref');
             
-            // Redirect after a short delay
-            setTimeout(() => {
-              navigate('/dashboard');
-            }, 2000);
+            // We stay on the page to show the success message as requested
             setSearchParams({}, { replace: true });
             // Ensure we stay on the dorm placement page after payment.
             if (window.location.pathname !== '/placement-request') {
               window.location.href = '/placement-request';
             }
+            // Mark that we are showing the success UI to prevent polling from redirecting us
+            setPaymentStatus('success');
+            setIsPaid(true);
           } else {
             toast.error(verifyRes.message || 'Verification failed', { id: verifToast });
             setPaymentStatus('error');
@@ -409,7 +430,7 @@ export default function PlacementRequestSimple() {
     ctx.font = '16px Arial';
     ctx.fillText(`Date: ${new Date().toLocaleDateString()}`, 40, 120);
     ctx.fillText(`Student: ${profile?.student?.fullName || 'Student'}`, 40, 150);
-    ctx.fillText(`Amount: 1,500.00 ETB`, 40, 180);
+    ctx.fillText(`Amount: 3,000.00 ETB`, 40, 180);
     ctx.fillText(`Transaction ID: CHAPA-${Math.random().toString(36).substr(2, 9).toUpperCase()}`, 40, 210);
     ctx.fillText(`Status: SUCCESSFUL`, 40, 240);
     
@@ -435,7 +456,7 @@ export default function PlacementRequestSimple() {
     try {
       setPaymentLoading(true);
       const res = await paymentApi.initialize({ 
-        amount: 1500,
+        amount: 3000,
         currency: 'ETB'
       });
       
@@ -555,9 +576,12 @@ export default function PlacementRequestSimple() {
       const status = res?.application?.status;
 
       if (status === 'Assigned') {
-        toast.success('Success! You have been assigned a dorm room.');
-        await clearDraft();
-        navigate('/student-portal');
+        // Only auto-navigate if we are NOT currently showing the payment success screen
+        if (paymentStatus !== 'success') {
+          toast.success('Success! You have been assigned a dorm room.');
+          await clearDraft();
+          navigate('/student-portal');
+        }
       } else if (status === 'Waiting') {
         toast.success(res?.message || 'Application submitted! Please wait for automatic room availability check.', { duration: 6000, icon: '⏳' });
         setExistingApp(res.application);
@@ -637,7 +661,7 @@ export default function PlacementRequestSimple() {
 
   const student = profile?.student || {};
   const account = dormApi.getUniversityAccount();
-  const amount = 1500;
+  const amount = 3000;
 
   return (
     <DashboardLayout>
@@ -766,8 +790,16 @@ export default function PlacementRequestSimple() {
                   </div>
                   <h3 className="text-xl font-black text-emerald-900">Room Assigned!</h3>
                   <p className="text-sm text-emerald-700">
-                    You have been assigned a dorm room. Check your room details in the Dashboard.
+                    You have been assigned a dorm room. Check your room details in the Student Portal.
                   </p>
+                  <div className="pt-4">
+                    <button
+                      onClick={() => navigate('/student-portal')}
+                      className="px-8 py-3 bg-emerald-600 text-white rounded-2xl font-bold hover:bg-emerald-700 transition-all shadow-lg shadow-emerald-200"
+                    >
+                      Go to Student Portal Dashboard
+                    </button>
+                  </div>
                 </div>
               )}
 
@@ -852,6 +884,12 @@ export default function PlacementRequestSimple() {
                             Thank you! Your payment has been verified. 
                             <strong> Please check your room details below and get your room key from the proctor's office in your campus.</strong>
                           </p>
+                          <button 
+                            onClick={() => navigate('/dashboard')}
+                            className="mt-4 flex items-center gap-2 bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2 rounded-xl font-bold transition-all shadow-md shadow-emerald-200"
+                          >
+                            Go to Dashboard <FaArrowRight className="w-3 h-3" />
+                          </button>
                         </div>
                         <div className="flex items-center gap-2 text-[10px] font-black text-emerald-600 uppercase tracking-widest relative z-10 bg-white/40 w-fit px-3 py-1 rounded-full border border-emerald-100">
                           <FaLock className="w-2.5 h-2.5" /> ID: {existingApp?.chapaTxRef || 'CHAPA-SUCCESS'}
