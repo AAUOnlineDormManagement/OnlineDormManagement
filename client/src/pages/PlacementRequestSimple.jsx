@@ -157,6 +157,15 @@ export default function PlacementRequestSimple() {
   const [draftLoaded, setDraftLoaded] = useState(false);
   const lastVerifiedTxRef = useRef(null);
 
+  // Detect when student is returning from Chapa payment gateway
+  // Note: once paymentStatus is set ('success'/'verifying'/'error'), the overlay
+  // is driven by paymentStatus state — not just the URL — so clearing URL params
+  // won't close the overlay.
+  const returnedFromChapa = useMemo(() => {
+    const params = new URLSearchParams(location.search || window.location.search);
+    return params.get('payment') === 'success' || !!params.get('tx_ref') || !!params.get('trx_ref');
+  }, [location.search]);
+
   const isAddis = false;
   const isLikelyFarAddis = false;
   const needsCentralAddisLetter = false;
@@ -374,19 +383,13 @@ export default function PlacementRequestSimple() {
               console.log('Could not refresh app after payment (likely 401)');
             }
             
-            // Clear search params and fallback to prevent duplicate triggers
-            toast.success('Payment verified! Your dorm room is now assigned.', { id: verifToast, duration: 6000 });
-            localStorage.removeItem('pending_chapa_tx_ref');
-            
-            // We stay on the page to show the success message as requested
-            setSearchParams({}, { replace: true });
-            // Ensure we stay on the dorm placement page after payment.
-            if (window.location.pathname !== '/placement-request') {
-              window.location.href = '/placement-request';
-            }
-            // Mark that we are showing the success UI to prevent polling from redirecting us
+            // Payment is verified — set success state first, THEN clear URL
+            // (clearing URL recalculates returnedFromChapa, but overlay stays open via paymentStatus)
             setPaymentStatus('success');
             setIsPaid(true);
+            toast.success('Payment verified! Your dorm room is now assigned.', { id: verifToast, duration: 6000 });
+            localStorage.removeItem('pending_chapa_tx_ref');
+            setSearchParams({}, { replace: true });
           } else {
             toast.error(verifyRes.message || 'Verification failed', { id: verifToast });
             setPaymentStatus('error');
@@ -665,6 +668,144 @@ export default function PlacementRequestSimple() {
 
   return (
     <DashboardLayout>
+      {/* ═══════════════════════════════════════════════════════════════════
+          PAYMENT RETURN OVERLAY
+          Shows when student is redirected back from Chapa gateway.
+          Hides the entire form and shows a clear success/verifying screen.
+      ═══════════════════════════════════════════════════════════════════ */}
+      {(returnedFromChapa || paymentStatus === 'success' || paymentStatus === 'verifying') && (
+        <div className="fixed inset-0 z-[9999] bg-gradient-to-br from-emerald-900 via-teal-900 to-slate-900 flex items-center justify-center">
+          {/* Animated background blobs */}
+          <div className="absolute inset-0 overflow-hidden pointer-events-none">
+            <div className="absolute -top-40 -left-40 w-96 h-96 bg-emerald-500/20 rounded-full blur-3xl animate-pulse" />
+            <div className="absolute -bottom-40 -right-40 w-96 h-96 bg-teal-500/20 rounded-full blur-3xl animate-pulse delay-1000" />
+          </div>
+
+          <div className="relative z-10 max-w-md w-full mx-4">
+            <div className="bg-white/10 backdrop-blur-2xl border border-white/20 rounded-3xl p-10 text-center shadow-2xl">
+
+              {/* Icon — spinner while verifying, checkmark when done */}
+              <div className="flex items-center justify-center mb-6">
+                {paymentStatus === 'success' ? (
+                  <div className="w-24 h-24 bg-emerald-500 rounded-full flex items-center justify-center shadow-lg shadow-emerald-500/40 animate-[bounceIn_0.5s_ease]">
+                    <FaCheckCircle className="w-12 h-12 text-white" />
+                  </div>
+                ) : paymentStatus === 'error' ? (
+                  <div className="w-24 h-24 bg-rose-500 rounded-full flex items-center justify-center shadow-lg shadow-rose-500/40">
+                    <FaTimes className="w-12 h-12 text-white" />
+                  </div>
+                ) : (
+                  <div className="relative w-24 h-24">
+                    <div className="absolute inset-0 rounded-full border-4 border-white/20" />
+                    <div className="absolute inset-0 rounded-full border-4 border-t-emerald-400 border-r-transparent border-b-transparent border-l-transparent animate-spin" />
+                    <div className="absolute inset-0 flex items-center justify-center">
+                      <FaLock className="w-8 h-8 text-white/60" />
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* University badge */}
+              <div className="flex items-center justify-center gap-2 mb-4">
+                <FaUniversity className="text-emerald-400 w-4 h-4" />
+                <span className="text-emerald-300 text-xs font-bold uppercase tracking-widest">Addis Ababa University</span>
+              </div>
+
+              {/* Main heading */}
+              {paymentStatus === 'success' ? (
+                <>
+                  <h1 className="text-3xl font-black text-white mb-2">Payment Confirmed! 🎉</h1>
+                  <p className="text-emerald-200 text-sm mb-2">Your dorm room has been assigned.</p>
+                  <p className="text-white/60 text-xs mb-8">
+                    Welcome to your new home at AAU. Check your student portal for room details.
+                  </p>
+                </>
+              ) : paymentStatus === 'error' ? (
+                <>
+                  <h1 className="text-3xl font-black text-white mb-2">Verification Issue</h1>
+                  <p className="text-rose-300 text-sm mb-2">{paymentErrorMessage || 'Could not verify your payment.'}</p>
+                  <p className="text-white/60 text-xs mb-8">
+                    If you completed the payment, please click "Check Payment Status" below.
+                  </p>
+                </>
+              ) : (
+                <>
+                  <h1 className="text-3xl font-black text-white mb-2">Verifying Payment...</h1>
+                  <p className="text-teal-200 text-sm mb-2">Please wait while we confirm your transaction with Chapa.</p>
+                  <p className="text-white/60 text-xs mb-8">This usually takes a few seconds.</p>
+                </>
+              )}
+
+              {/* Transaction detail strip */}
+              <div className="bg-white/10 rounded-2xl p-4 mb-6 text-left space-y-2">
+                <div className="flex justify-between text-xs">
+                  <span className="text-white/50">Amount</span>
+                  <span className="text-white font-bold">3,000.00 ETB</span>
+                </div>
+                <div className="flex justify-between text-xs">
+                  <span className="text-white/50">Student</span>
+                  <span className="text-white font-bold">{profile?.student?.fullName || '...'}</span>
+                </div>
+                <div className="flex justify-between text-xs">
+                  <span className="text-white/50">Purpose</span>
+                  <span className="text-white font-bold">Dormitory Fee</span>
+                </div>
+                <div className="flex justify-between text-xs">
+                  <span className="text-white/50">Status</span>
+                  <span className={`font-bold ${paymentStatus === 'success' ? 'text-emerald-400' : paymentStatus === 'error' ? 'text-rose-400' : 'text-yellow-400'}`}>
+                    {paymentStatus === 'success' ? '✅ Verified' : paymentStatus === 'error' ? '❌ Failed' : '⏳ Verifying...'}
+                  </span>
+                </div>
+              </div>
+
+              {/* Action buttons */}
+              {paymentStatus === 'success' && (
+                <div className="space-y-3">
+                  <button
+                    onClick={() => navigate('/student-portal')}
+                    className="w-full py-4 bg-emerald-500 hover:bg-emerald-400 text-white rounded-2xl font-black text-base transition-all shadow-lg shadow-emerald-500/30 flex items-center justify-center gap-2"
+                  >
+                    Go to Student Portal Dashboard
+                    <FaArrowRight className="w-4 h-4" />
+                  </button>
+                  <button
+                    onClick={() => setSearchParams({}, { replace: true })}
+                    className="w-full py-3 bg-white/10 hover:bg-white/20 text-white/80 rounded-2xl font-semibold text-sm transition-all"
+                  >
+                    View Application Details
+                  </button>
+                </div>
+              )}
+
+              {paymentStatus === 'error' && (
+                <div className="space-y-3">
+                  <button
+                    onClick={handleCheckStatus}
+                    disabled={paymentLoading}
+                    className="w-full py-4 bg-blue-500 hover:bg-blue-400 disabled:opacity-50 text-white rounded-2xl font-black text-base transition-all flex items-center justify-center gap-2"
+                  >
+                    {paymentLoading ? <FaSpinner className="animate-spin" /> : null}
+                    Check Payment Status
+                  </button>
+                  <button
+                    onClick={() => { setSearchParams({}, { replace: true }); setPaymentStatus(null); }}
+                    className="w-full py-3 bg-white/10 hover:bg-white/20 text-white/80 rounded-2xl font-semibold text-sm transition-all"
+                  >
+                    Back to Application
+                  </button>
+                </div>
+              )}
+
+              {(paymentStatus === 'verifying' || (!paymentStatus && returnedFromChapa)) && (
+                <p className="text-white/40 text-xs">
+                  Do not close this page...
+                </p>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
       <div className="flex min-h-screen">
         {/* Left Side - Form */}
         <div className="flex-1 overflow-y-auto px-6 py-8 lg:px-12">

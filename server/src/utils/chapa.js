@@ -5,13 +5,11 @@ function buildPlacementReturnUrl() {
   const explicit = (process.env.CHAPA_RETURN_URL || '').trim();
   if (explicit) return explicit;
 
+  // IMPORTANT: Chapa's servers redirect the student's browser AFTER payment.
+  // The return_url must ALWAYS be a publicly accessible URL (never localhost).
+  // localhost:5173 is only reachable from the student's own machine, not from Chapa's servers,
+  // which causes Chrome's "Unsafe attempt to load URL" cross-origin error.
   const frontend = (process.env.FRONTEND_URL || 'https://aauonlinedormmanegement.vercel.app').trim().replace(/\/+$/, '');
-  
-  // If we're on localhost and FRONTEND_URL isn't set, default to common vite port
-  if (!process.env.FRONTEND_URL && !process.env.VERCEL) {
-    return `http://localhost:5173/placement-request?payment=success`;
-  }
-
   return `${frontend}/placement-request?payment=success`;
 }
 
