@@ -229,12 +229,16 @@ const finalizeVerification = async (chapaData, req, res) => {
         application.paymentVerifiedAt = now;
         application.chapaTxRef = tx_ref;
 
-        // If status was PaymentPending, it means they already waited (if Addis) 
-        // or skipped wait (if non-Addis) and a room was confirmed available.
-        // Now we assign it!
-        if (application.status === 'PaymentPending') {
-          console.log(`🏠 Manual verify: Assigning room for ${application.student?.user?.name || 'student'}...`);
-          await assignStudentToRoom(application, application.student);
+        // If the student has now paid, try assigning a room for self-sponsored applications.
+        // This covers cases where the app may still be Waiting/Pending or already marked PaymentPending.
+        if (!application.assignedRoom || application.status !== 'Assigned') {
+          console.log(`🏠 Payment verified: assigning room for ${application.student?.user?.name || 'student'}...`);
+          const assigned = await assignStudentToRoom(application, application.student);
+          if (assigned) {
+            console.log(`✅ Room assigned after payment for ${application.student?.user?.name || 'student'}`);
+          } else {
+            console.log(`⚠️ No room available to assign after payment for ${application.student?.user?.name || 'student'}`);
+          }
         }
 
         await application.save();
