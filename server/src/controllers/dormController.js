@@ -216,9 +216,14 @@ function strictCityMatchFromBackOcr(city, backText) {
  * Prefer a room on the student's faculty campus; fall back to any same-gender vacancy.
  */
 async function findRoomForStudent(student, isSpecialNeed = false) {
+  const gender = student.gender || student.user?.gender;
+  if (!gender) {
+    console.warn(`⚠️ Gender not found for student ${student._id}. Room search may fail.`);
+  }
+
   const campus = getCampusForDepartment(student.department);
   let query = {
-    gender: roomGenderFilter(student.gender),
+    gender: roomGenderFilter(gender),
     campus: { $regex: campusMatcher(campus) },
     capacity: { $gt: 0 },
     $expr: { $lt: ["$currentOccupants", "$capacity"] }
@@ -588,24 +593,30 @@ const submitApplication = async (req, res) => {
 
 const getMyApplication = async (req, res) => {
   try {
-    const student = await Student.findOne({ user: req.user._id });
+    const student = await Student.findOne({ user: req.user._id }).populate('user');
     if (!student) {
       return res.status(404).json({ success: false, message: 'Student not found' });
     }
 
-    let application = await DormApplication.findOne({ student: student._id }).populate(
-      'student assignedRoom'
-    );
+    let application = await DormApplication.findOne({ student: student._id }).populate({
+      path: 'student',
+      populate: { path: 'user' }
+    }).populate('assignedRoom');
 
     if (!application) {
       return res.json({ success: true, application: null, message: 'No application submitted yet' });
     }
 
-    // AUTO-ASSIGN: If waiting period has expired, check for room now
-    if (application.status === 'Waiting' && application.scheduledReleaseAt) {
-      const releaseTime = new Date(application.scheduledReleaseAt).getTime();
-      if (Date.now() >= releaseTime) {
-        console.log(`⏰ Wait expired for ${student.fullName} — checking room availability...`);
+    const needsAdminApproval = student.isStaffRelated || student.isSpecialNeed;
+
+    // AUTO-ASSIGN: If waiting period has expired, or if a regular student is stuck in Pending (retry)
+    const isWaitingExpired = application.status === 'Waiting' && application.scheduledReleaseAt && Date.now() >= new Date(application.scheduledReleaseAt).getTime();
+    const isPendingRetry = application.status === 'Pending' && !needsAdminApproval;
+
+    if (isWaitingExpired || isPendingRetry) {
+        if (isWaitingExpired) console.log(`⏰ Wait expired for ${student.user?.name || 'student'} — checking room availability...`);
+        if (isPendingRetry) console.log(`🔄 Retrying assignment for Pending student ${student.user?.name || 'student'}...`);
+        
         try {
           const { room, isOverflow, campus } = await findRoomForStudent(student, student.isSpecialNeed);
           const isSelfSponsored = isSelfSponsoredStudent(student);
@@ -703,7 +714,10 @@ const assignPendingApplications = async (req, res) => {
     }
 
     const pendingApplications = await DormApplication.find({ status: 'Pending' })
-      .populate('student')
+      .populate({
+        path: 'student',
+        populate: { path: 'user' }
+      })
       .sort({ createdAt: 1 });
 
     if (pendingApplications.length === 0) {
@@ -757,7 +771,10 @@ const verifyChapaPayment = async (req, res) => {
     }
 
     const application = await DormApplication.findOne({ chapaTxRef: tx_ref })
-      .populate('student');
+      .populate({
+        path: 'student',
+        populate: { path: 'user' }
+      });
 
     if (!application || application.paymentStatus !== 'Pending') {
       return res.status(200).send('OK');
