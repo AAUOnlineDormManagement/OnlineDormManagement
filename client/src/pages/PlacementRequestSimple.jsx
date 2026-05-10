@@ -990,8 +990,8 @@ export default function PlacementRequestSimple() {
                 </div>
               )}
 
-              {/* PLACEMENT FEE SECTION - MOVED HERE TO BE VISIBLE AFTER SUBMISSION */}
-              {(shouldShowPaymentSection && (existingApp?.status === 'Waiting' || existingApp?.status === 'PaymentPending' || isPaid)) && (
+              {/* PLACEMENT FEE SECTION */}
+              {shouldShowPaymentSection && (
                 <div className="mt-8 pt-8 border-t border-slate-100">
                   <div className="bg-white rounded-2xl border border-blue-50 p-6 shadow-sm">
                     <div className="flex items-start gap-4 mb-6">
