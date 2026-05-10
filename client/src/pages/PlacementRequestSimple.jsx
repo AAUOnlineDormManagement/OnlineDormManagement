@@ -172,23 +172,31 @@ export default function PlacementRequestSimple() {
 
   const studentTypeInfo = useMemo(() => {
     const s = profile?.student || {};
-    const rawType = s.studentType || s.sponsorship || '';
-    const t = String(rawType).toLowerCase();
+    const sponsorship = String(s.sponsorship || '').toLowerCase();
+    const studentType = String(s.studentType || '').toLowerCase();
 
-    if (t.includes('self')) {
-      return { label: 'Self Sponsored', isSelfSponsored: true };
+    const isSelfSponsored = sponsorship.includes('self') || studentType.includes('self');
+    const isSpecialNeed = s.isSpecialNeed || studentType.includes('special');
+    const isStaffRelated = s.isStaffRelated || studentType.includes('staff');
+
+    if (isSelfSponsored) {
+      return { label: 'Self Sponsored', isSelfSponsored: true, isSpecialNeed, isStaffRelated };
     }
-    if (t.includes('government')) {
-      return { label: 'Government Sponsorship', isSelfSponsored: false };
+    if (isSpecialNeed) {
+      return { label: 'Special Needs', isSelfSponsored: false, isSpecialNeed, isStaffRelated };
     }
-    if (t.includes('special')) {
-      return { label: 'Special Needs', isSelfSponsored: false };
+    if (isStaffRelated) {
+      return { label: 'Staff Relatives', isSelfSponsored: false, isSpecialNeed, isStaffRelated };
     }
-    if (t.includes('staff')) {
-      return { label: 'Staff Relatives', isSelfSponsored: false };
+    if (sponsorship.includes('government') || studentType.includes('government')) {
+      return { label: 'Government Sponsorship', isSelfSponsored: false, isSpecialNeed, isStaffRelated };
     }
-    return { label: rawType || 'Not Set', isSelfSponsored: false };
+    return { label: s.sponsorship || s.studentType || 'Not Set', isSelfSponsored: false, isSpecialNeed, isStaffRelated };
   }, [profile]);
+
+  const shouldShowPaymentSection = useMemo(() => {
+    return studentTypeInfo.isSelfSponsored && !isStaffRelated && !isSpecialNeed;
+  }, [studentTypeInfo.isSelfSponsored, isStaffRelated, isSpecialNeed]);
 
   // Persistence: Save draft whenever text fields change, BUT ONLY after initial load
   useEffect(() => {
@@ -983,7 +991,7 @@ export default function PlacementRequestSimple() {
               )}
 
               {/* PLACEMENT FEE SECTION - MOVED HERE TO BE VISIBLE AFTER SUBMISSION */}
-              {(existingApp?.status === 'Waiting' || existingApp?.status === 'PaymentPending' || existingApp?.status === 'Pending' || existingApp?.status === 'Assigned' || isPaid) && (
+              {(shouldShowPaymentSection && (existingApp?.status === 'Waiting' || existingApp?.status === 'PaymentPending' || isPaid)) && (
                 <div className="mt-8 pt-8 border-t border-slate-100">
                   <div className="bg-white rounded-2xl border border-blue-50 p-6 shadow-sm">
                     <div className="flex items-start gap-4 mb-6">

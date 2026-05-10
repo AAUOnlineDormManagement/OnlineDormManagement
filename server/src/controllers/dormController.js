@@ -443,8 +443,8 @@ const submitApplication = async (req, res) => {
 
     if (needsAdminApproval) {
       // Staff-related or special need students require admin approval
-      status = 'Pending';  // Not 'Under Review' - stays 'Pending' for admin queue
-      paymentStatus = isSelfSponsored ? 'Pending' : 'NotRequired';
+      status = 'Pending';  // stays Pending until admin review
+      paymentStatus = 'NotRequired';
     } else {
       // Normal flow for regular students (no staff/special need flags)
       if (isAddis) {
@@ -503,6 +503,8 @@ const submitApplication = async (req, res) => {
       extractedAddress: extractAddressRegionFromBackOcr(backText) || backText.slice(0, 8000),
       isOutsideAddisSheger: !isAddis,
       isFarAddisOutskirts: isFar,
+      isStaffRelated: student.isStaffRelated,
+      isSpecialNeed: student.isSpecialNeed,
       paymentStatus,
       status,
       chapaTxRef,
@@ -659,6 +661,7 @@ const getMyApplication = async (req, res) => {
     }
 
     const appObj = application.toObject();
+    const needsAdminApproval = student.isStaffRelated || student.isSpecialNeed;
     if (application.status === 'Waiting' && application.scheduledReleaseAt) {
       appObj.remainingMs = Math.max(0, new Date(application.scheduledReleaseAt).getTime() - Date.now());
     }
@@ -667,6 +670,7 @@ const getMyApplication = async (req, res) => {
       success: true, 
       application: appObj, 
       chapaPaymentUrl: application.chapaPaymentUrl || null,
+      needsAdminApproval,
       deploymentVersion: '2026-05-09-v7-AUTO-REDIRECT' 
     });
   } catch (err) {
