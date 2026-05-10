@@ -249,6 +249,20 @@ async function findRoomForStudent(student, isSpecialNeed = false) {
     if (room) return { room, isOverflow: true, campus: targetCampus };
   }
 
+  // ULTIMATE FALLBACK: If no policies match or they are all full, find ANY available room matching gender.
+  const anyQuery = {
+    gender: roomGenderFilter(student.gender),
+    capacity: { $gt: 0 },
+    $expr: { $lt: ["$currentOccupants", "$capacity"] }
+  };
+  if (isSpecialNeed) {
+    const firstFloors = await Floor.find({ floorNumber: 1 });
+    anyQuery.floor = { $in: firstFloors.map((f) => f._id) };
+  }
+  
+  const anyRoom = await Room.findOne(anyQuery).populate('building');
+  if (anyRoom) return { room: anyRoom, isOverflow: true, campus: anyRoom.campus };
+
   return { room: null, isOverflow: false, campus };
 }
 
