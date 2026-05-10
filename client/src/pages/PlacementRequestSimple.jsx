@@ -577,8 +577,29 @@ export default function PlacementRequestSimple() {
       toast.dismiss(loadingToast);
 
       const status = res?.application?.status;
+      const needsAdminApproval = res?.needsAdminApproval;
 
-      if (status === 'Assigned') {
+      if (needsAdminApproval) {
+        // Staff-related or special-need: show popup to visit admin
+        toast.success('Application submitted!', { duration: 4000 });
+        const adminToast = toast((t) => (
+          <div className="max-w-sm">
+            <h3 className="font-bold text-lg mb-2">🏫 Visit Your Campus Admin Office</h3>
+            <p className="text-sm mb-4">
+              Your application requires review because you selected staff-related or special need assistance. Please visit your campus administrative office with your student ID to complete the dorm assignment process.
+            </p>
+            <button
+              onClick={() => toast.dismiss(t.id)}
+              className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700 w-full"
+            >
+              Got it
+            </button>
+          </div>
+        ), { duration: 10000, icon: '📋' });
+        setExistingApp(res.application);
+        await clearDraft();
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+      } else if (status === 'Assigned') {
         // Only auto-navigate if we are NOT currently showing the payment success screen
         if (paymentStatus !== 'success') {
           toast.success('Success! You have been assigned a dorm room.');

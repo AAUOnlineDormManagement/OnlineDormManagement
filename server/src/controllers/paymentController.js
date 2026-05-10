@@ -22,9 +22,16 @@ function buildPlacementReturnUrl() {
   if (explicit) return explicit;
 
   // IMPORTANT: Chapa's servers redirect the student's browser AFTER payment.
-  // The return_url must ALWAYS be a publicly accessible URL (never localhost).
-  // localhost:5173 is only reachable from the student's own machine, not from Chapa's servers.
-  const frontend = (process.env.FRONTEND_URL || 'https://aauonlinedormmanegement.vercel.app').trim().replace(/\/+$/, '');
+  // The return_url must ALWAYS be a publicly accessible URL (never localhost or 5173).
+  const prodUrl = 'https://aauonlinedormmanegement.vercel.app';
+  const envFrontend = (process.env.FRONTEND_URL || '').trim().replace(/\/+$/, '');
+  
+  // Ensure we NEVER return localhost or 5173 (dev ports)
+  let frontend = envFrontend || prodUrl;
+  if (!frontend || frontend.includes('localhost') || frontend.includes(':5173') || frontend.includes('127.0.0.1')) {
+    frontend = prodUrl;
+  }
+  
   return `${frontend}/placement-request?payment=success`;
 }
 

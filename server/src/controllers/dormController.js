@@ -438,12 +438,15 @@ const submitApplication = async (req, res) => {
     let foundRoom = null;
     let foundCampus = null;
 
-    if (student.isStaffRelated) {
-      // Staff-related students require admin approval
-      status = 'Under Review';
+    // If staff-related OR special-need: require admin approval
+    const needsAdminApproval = student.isStaffRelated || student.isSpecialNeed;
+
+    if (needsAdminApproval) {
+      // Staff-related or special need students require admin approval
+      status = 'Pending';  // Not 'Under Review' - stays 'Pending' for admin queue
       paymentStatus = isSelfSponsored ? 'Pending' : 'NotRequired';
     } else {
-      // Normal flow for non-staff-related students
+      // Normal flow for regular students (no staff/special need flags)
       if (isAddis) {
         // OCR-based city policy:
         // - Addis Ababa => 5 min default
@@ -453,7 +456,7 @@ const submitApplication = async (req, res) => {
         scheduledReleaseAt = new Date(Date.now() + waitMs);
         paymentStatus = isSelfSponsored ? 'Pending' : 'NotRequired';
       } else {
-        // Outside Addis residents get immediate room check
+        // Outside Addis residents get immediate room check and assignment
         const { room, campus } = await findRoomForStudent(student, student.isSpecialNeed);
         if (room) {
           foundRoom = room;
@@ -467,6 +470,7 @@ const submitApplication = async (req, res) => {
               console.error('Chapa init failed:', e.message);
             }
           } else {
+            // Government-sponsored non-Addis: assign immediately
             status = 'Assigned';
             paymentStatus = 'NotRequired';
           }
@@ -534,7 +538,9 @@ const submitApplication = async (req, res) => {
     await application.populate('student assignedRoom');
 
     let message = 'Application submitted successfully.';
-    if (application.status === 'Waiting') {
+    if (needsAdminApproval) {
+      message = `Your application has been submitted. Since you selected staff-related or special need assistance, please visit your campus administrative office to complete the dorm assignment process. An administrator will review your request and assign you a dorm.`;
+    } else if (application.status === 'Waiting') {
       const minuteLabel = cityCategory === 'shager' ? 'Shager' : 'Addis Ababa';
       const waitMinsDisplay = Math.max(0, Math.ceil(waitMs / 60000));
       message = `City of ${minuteLabel} detected. Please wait ${waitMinsDisplay} minute(s) while we verify room availability.`;
@@ -542,8 +548,6 @@ const submitApplication = async (req, res) => {
       message = `Room found (${foundRoom?.building?.name || ''} - ${foundRoom?.roomNumber || ''}) on ${foundCampus || 'assigned'} campus. Please complete your payment to finalize assignment.`;
     } else if (application.status === 'Assigned') {
       message = `Success! Room ${application.assignedRoom?.roomNumber || ''} has been assigned.`;
-    } else if (application.status === 'Under Review') {
-      message = `Your application has been submitted and is under review by the administration due to staff relation. You will be notified once reviewed.`;
     }
 
     const appObj = application.toObject();
@@ -556,7 +560,8 @@ const submitApplication = async (req, res) => {
       message,
       application: appObj,
       chapaPaymentUrl,
-      deploymentVersion: '2026-04-26-v6-OBJECT-FIX'
+      needsAdminApproval,
+      deploymentVersion: '2026-05-10-v8-ADMIN-APPROVAL-FIX'
     });
   } catch (err) {
     console.error(err);
