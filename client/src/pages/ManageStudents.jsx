@@ -120,7 +120,8 @@ export default function ManageStudents() {
                     : app.status === 'Rejected'
                       ? 'bg-red-100 text-red-700'
                       : 'bg-slate-100 text-slate-700',
-              studentType: studentType
+              studentType: studentType,
+              needsAdminApproval: app.isStaffRelated || app.isSpecialNeed || s.isStaffRelated || s.isSpecialNeed || studentType === 'Special Needs' || studentType === 'Staff Relatives'
             };
           })
       );
@@ -353,7 +354,7 @@ export default function ManageStudents() {
                   </td>
                   <td className="px-6 py-4 text-right">
                     <div className="flex items-center justify-end gap-2">
-                      {student.status !== 'Assigned' && student.status !== 'Rejected' && (
+                      {student.status !== 'Assigned' && student.status !== 'Rejected' && student.needsAdminApproval && (
                         <>
                           <button
                             onClick={(e) => handleReject(e, student.applicationId)}

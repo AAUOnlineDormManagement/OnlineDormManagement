@@ -114,6 +114,7 @@ export default function StudentDetail() {
   const isStaffRelative = studentType === 'Staff Relatives' || studentType === 'Staff Relative';
   const isGovernmentSponsored = studentType === 'Government Sponsorship' || student.sponsorship === 'Government';
   const isSelfSponsored = studentType === 'Self Sponsored' || student.sponsorship === 'Self-Sponsored';
+  const needsAdminApproval = application.isStaffRelated || application.isSpecialNeed || student.isStaffRelated || student.isSpecialNeed || isSpecialNeeds || isStaffRelative;
 
   // Helper to get file URL
   const getFileUrl = (filePath) => {
@@ -410,7 +411,7 @@ export default function StudentDetail() {
               </div>
 
       {/* Action Buttons */}
-      {application.status !== 'Assigned' && application.status !== 'Rejected' && (
+      {application.status !== 'Assigned' && application.status !== 'Rejected' && needsAdminApproval && (
         <div className="flex items-center justify-end gap-3 mt-6">
           <button
             onClick={handleReject}
