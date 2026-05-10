@@ -599,12 +599,14 @@ const getMyApplication = async (req, res) => {
              if (isSelfSponsored) {
                 // MOVE TO PAYMENT PENDING
                 application.status = 'PaymentPending';
+                application.paymentStatus = 'Pending';
                 application.scheduledReleaseAt = null;
                 // Initialize Chapa now that we confirmed a room exists
                 let chapaPaymentUrl = null;
                 try {
                    const paymentInfo = await initializeChapaPayment(student, 3000);
                    application.chapaTxRef = paymentInfo?.tx_ref || null;
+                   application.paymentStatus = 'Pending';
                    chapaPaymentUrl = paymentInfo?.checkout_url || null;
                    application.chapaPaymentUrl = chapaPaymentUrl; // Temporary for response
                 } catch (pe) {

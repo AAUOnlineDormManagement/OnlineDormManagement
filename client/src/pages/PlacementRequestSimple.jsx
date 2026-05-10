@@ -175,28 +175,28 @@ export default function PlacementRequestSimple() {
     const sponsorship = String(s.sponsorship || '').toLowerCase();
     const studentType = String(s.studentType || '').toLowerCase();
 
+    const effectiveIsStaffRelated = !!isStaffRelated || !!s.isStaffRelated || studentType.includes('staff');
+    const effectiveIsSpecialNeed = !!isSpecialNeed || !!s.isSpecialNeed || studentType.includes('special');
     const isSelfSponsored = sponsorship.includes('self') || studentType.includes('self');
-    const isSpecialNeed = s.isSpecialNeed || studentType.includes('special');
-    const isStaffRelated = s.isStaffRelated || studentType.includes('staff');
 
     if (isSelfSponsored) {
-      return { label: 'Self Sponsored', isSelfSponsored: true, isSpecialNeed, isStaffRelated };
+      return { label: 'Self Sponsored', isSelfSponsored: true, isSpecialNeed: effectiveIsSpecialNeed, isStaffRelated: effectiveIsStaffRelated };
     }
-    if (isSpecialNeed) {
-      return { label: 'Special Needs', isSelfSponsored: false, isSpecialNeed, isStaffRelated };
+    if (effectiveIsSpecialNeed) {
+      return { label: 'Special Needs', isSelfSponsored: false, isSpecialNeed: effectiveIsSpecialNeed, isStaffRelated: effectiveIsStaffRelated };
     }
-    if (isStaffRelated) {
-      return { label: 'Staff Relatives', isSelfSponsored: false, isSpecialNeed, isStaffRelated };
+    if (effectiveIsStaffRelated) {
+      return { label: 'Staff Relatives', isSelfSponsored: false, isSpecialNeed: effectiveIsSpecialNeed, isStaffRelated: effectiveIsStaffRelated };
     }
     if (sponsorship.includes('government') || studentType.includes('government')) {
-      return { label: 'Government Sponsorship', isSelfSponsored: false, isSpecialNeed, isStaffRelated };
+      return { label: 'Government Sponsorship', isSelfSponsored: false, isSpecialNeed: effectiveIsSpecialNeed, isStaffRelated: effectiveIsStaffRelated };
     }
-    return { label: s.sponsorship || s.studentType || 'Not Set', isSelfSponsored: false, isSpecialNeed, isStaffRelated };
-  }, [profile]);
+    return { label: s.sponsorship || s.studentType || 'Not Set', isSelfSponsored: false, isSpecialNeed: effectiveIsSpecialNeed, isStaffRelated: effectiveIsStaffRelated };
+  }, [profile, isStaffRelated, isSpecialNeed]);
 
   const shouldShowPaymentSection = useMemo(() => {
-    return studentTypeInfo.isSelfSponsored && !isStaffRelated && !isSpecialNeed;
-  }, [studentTypeInfo.isSelfSponsored, isStaffRelated, isSpecialNeed]);
+    return studentTypeInfo.isSelfSponsored && !studentTypeInfo.isStaffRelated && !studentTypeInfo.isSpecialNeed;
+  }, [studentTypeInfo.isSelfSponsored, studentTypeInfo.isStaffRelated, studentTypeInfo.isSpecialNeed]);
 
   // Persistence: Save draft whenever text fields change, BUT ONLY after initial load
   useEffect(() => {
