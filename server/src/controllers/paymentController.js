@@ -26,11 +26,8 @@ function buildPlacementReturnUrl() {
   const prodUrl = 'https://aauonlinedormmanegement.vercel.app';
   const envFrontend = (process.env.FRONTEND_URL || '').trim().replace(/\/+$/, '');
   
-  // Ensure we NEVER return localhost or 5173 (dev ports)
   let frontend = envFrontend || prodUrl;
-  if (!frontend || frontend.includes('localhost') || frontend.includes(':5173') || frontend.includes('127.0.0.1')) {
-    frontend = prodUrl;
-  }
+  // Removed strict check so localhost development works properly.
   
   return `${frontend}/placement-request?payment=success`;
 }

@@ -973,6 +973,21 @@ export default function PlacementRequestSimple() {
                 </div>
               )}
 
+              {/* PENDING STATUS */}
+              {existingApp.status === 'Pending' && (
+                <div className="text-center space-y-4">
+                  <div className="w-16 h-16 mx-auto bg-slate-100 rounded-full flex items-center justify-center">
+                    <FaHourglassHalf className="w-8 h-8 text-slate-600" />
+                  </div>
+                  <h3 className="text-xl font-black text-slate-900">Application Pending</h3>
+                  <p className="text-sm text-slate-600 mb-6 max-w-md mx-auto">
+                    {(existingApp.isStaffRelated || existingApp.isSpecialNeed)
+                      ? 'Your application requires review because you selected staff-related or special need assistance. Please visit your campus administrative office with your student ID.'
+                      : 'You are currently in the queue. No rooms are available at the moment. You will be automatically assigned and notified when a bed becomes available.'}
+                  </p>
+                </div>
+              )}
+
               {/* PAYMENT PENDING STATUS — Prominent call to action */}
               {existingApp.status === 'PaymentPending' && (
                 <div className="text-center space-y-4">
