@@ -684,12 +684,10 @@ const getMyApplication = async (req, res) => {
           application = await DormApplication.findOne({ student: student._id }).populate('student assignedRoom');
         } catch (assignErr) {
           console.error(`Auto-assign on poll failed for ${student.fullName}:`, assignErr.message);
-        }
       }
     }
 
     const appObj = application.toObject();
-    const needsAdminApproval = student.isStaffRelated || student.isSpecialNeed;
     if (application.status === 'Waiting' && application.scheduledReleaseAt) {
       appObj.remainingMs = Math.max(0, new Date(application.scheduledReleaseAt).getTime() - Date.now());
     }
