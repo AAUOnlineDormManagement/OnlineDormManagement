@@ -285,7 +285,7 @@ export default function AdminDashboard() {
                     className="group p-4 rounded-xl bg-slate-50 hover:bg-white border border-transparent hover:border-slate-200 transition-all text-center"
                   >
                     <div className={`w-10 h-10 rounded-xl ${action.bg} flex items-center justify-center mx-auto mb-2 group-hover:scale-110 transition-transform`}>
-                      <action.icon className={`text-lg ${action.color.replace('from', 'text').split(' ')[0]}`} />
+                      <action.icon className={`text-lg ${action.color?.replace('from', 'text')?.split(' ')?.[0] || 'text-indigo-500'}`} />
                     </div>
                     <span className="text-sm font-medium text-slate-700">{action.title}</span>
                   </Link>

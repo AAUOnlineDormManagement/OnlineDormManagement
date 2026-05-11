@@ -21,7 +21,8 @@ import {
   FaBox,
   FaCalendarAlt,
   FaCog,
-  FaChevronDown
+  FaChevronDown,
+  FaInfoCircle
 } from "react-icons/fa";
 import studentApi from '../api/studentApi';
 import authApi from '../api/authApi';
@@ -257,7 +258,7 @@ export default function StudentPortalWithBoundary() {
                   {user?.name?.charAt(0) || 'S'}
                 </div>
                 <div className="hidden sm:block text-left">
-                  <p className="text-xs font-black text-slate-800 truncate max-w-[100px]">{student?.name?.split(' ')[0] || 'Student'}</p>
+                  <p className="text-xs font-black text-slate-800 truncate max-w-[100px]">{student?.name?.split(' ')?.[0] || 'Student'}</p>
                   <p className="text-[9px] font-bold text-slate-400 uppercase tracking-tighter">{student?.studentId || 'ID'}</p>
                 </div>
                 <FaChevronDown className={`w-3 h-3 text-slate-400 transition-transform duration-300 ${isUserMenuOpen ? 'rotate-180' : ''}`} />
@@ -322,7 +323,7 @@ export default function StudentPortalWithBoundary() {
                 <span className="text-[10px] font-black text-emerald-700 uppercase tracking-widest">Systems Online</span>
               </div>
               <h1 className="text-5xl sm:text-6xl font-black text-slate-900 tracking-tight leading-[1.1]">
-                Hello, <span className="bg-clip-text text-transparent bg-premium-gradient">{student?.name?.split(" ")[0] || 'Explorer'}</span>.
+                Hello, <span className="bg-clip-text text-transparent bg-premium-gradient">{student?.name?.split(" ")?.[0] || 'Explorer'}</span>.
               </h1>
               <p className="text-lg text-slate-500 font-medium max-w-xl leading-relaxed">
                 Welcome to your centralized dormitory command center. Manage your residency, track requests, and stay connected with campus life.
@@ -375,9 +376,9 @@ export default function StudentPortalWithBoundary() {
                       to={action.link}
                       className="group relative glass-effect rounded-3xl p-6 border border-slate-100 shadow-sm hover:shadow-xl hover:shadow-blue-500/5 hover-lift transition-all duration-500 overflow-hidden"
                     >
-                      <div className={`absolute top-0 right-0 w-32 h-32 ${action.color.split(' ')[0]} opacity-5 rounded-full -mr-16 -mt-16 group-hover:scale-150 transition-transform duration-700`}></div>
+                      <div className={`absolute top-0 right-0 w-32 h-32 ${action.color?.split(' ')?.[0] || 'bg-blue-50'} opacity-5 rounded-full -mr-16 -mt-16 group-hover:scale-150 transition-transform duration-700`}></div>
                       <div className="relative z-10 flex items-start gap-5">
-                        <div className={`w-14 h-14 rounded-2xl ${action.color} flex items-center justify-center shadow-inner group-hover:scale-110 transition-transform duration-500`}>
+                        <div className={`w-14 h-14 rounded-2xl ${action.color || 'bg-blue-50 text-blue-600'} flex items-center justify-center shadow-inner group-hover:scale-110 transition-transform duration-500`}>
                           <Icon className="w-6 h-6" />
                         </div>
                         <div className="flex-1">
