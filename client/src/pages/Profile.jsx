@@ -1,402 +1,268 @@
-import { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import {
-  FaBuilding,
-  FaBell,
   FaUser,
-  FaWrench,
-  FaExclamationTriangle,
-  FaSignOutAlt,
-  FaCheckCircle,
-  FaSpinner,
   FaLock,
   FaEnvelope,
   FaPhone,
-  FaMapMarkerAlt,
-  FaCalendarAlt,
-  FaChevronRight,
-  FaEdit,
-  FaSave,
-  FaTimes
+  FaIdCard,
+  FaIdBadge,
+  FaUniversity,
+  FaBuilding,
+  FaShieldAlt,
+  FaClock,
+  FaCheckCircle,
+  FaIdCardAlt
 } from 'react-icons/fa';
-import ProfilePictureUpload from '../components/common/ProfilePictureUpload';
-import BuildingIcon from '../components/common/BuildingIcon';
 import DashboardLayout from '../components/dashboard/Students/DashboardLayout';
-import studentApi from '../api/studentApi';
 import authApi from '../api/authApi';
-import proctorApi from '../api/proctorApi';
-import toast from 'react-hot-toast';
+import studentApi from '../api/studentApi';
 
 export default function Profile() {
+  const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [profileData, setProfileData] = useState(null);
-  const [error, setError] = useState(null);
-  const [isEditingName, setIsEditingName] = useState(false);
-  const [nameDraft, setNameDraft] = useState('');
-  const [savingName, setSavingName] = useState(false);
-  const user = authApi.getCurrentUser();
+  const [showPasswordModal, setShowPasswordModal] = useState(false);
+  const [passwords, setPasswords] = useState({ current: '', new: '', confirm: '' });
+  const [updating, setUpdating] = useState(false);
 
   useEffect(() => {
     const fetchProfile = async () => {
       try {
         setLoading(true);
-        if (['Student', 'EventPoster', 'Vendor'].includes(user?.role)) {
-          const res = await studentApi.getDashboard();
-          if (res.success) {
-            setProfileData(res);
-          }
-        } else if (user?.role === 'Proctor') {
-          const res = await proctorApi.getDashboard();
-          if (res.success) {
-            // Adapt proctor dashboard data to profile needs
-            setProfileData({
-              student: {
-                name: user.name,
-                studentId: user.userId,
-                status: 'Staff',
-                department: 'Management',
-                yearOfStudy: 'N/A',
-                gender: 'N/A',
-                dormitory: res.building?.building?.name || 'Assigned Building',
-                block: res.building?.building?.buildingID || '',
-                roomNumber: 'Office',
-                floor: '1',
-                sponsorship: 'Employee'
-              }
-            });
-          }
+        // Get user from auth api
+        const currentUser = authApi.getCurrentUser();
+        
+        // If it's a student, try to get more details
+        if (currentUser?.role === 'Student') {
+           const res = await studentApi.getDashboard();
+           if (res.success) {
+              setUser({ ...currentUser, ...res.student });
+           } else {
+              setUser(currentUser);
+           }
         } else {
-          // Fallback for Admin or unknown
-          setProfileData({
-            student: {
-              name: user?.name || 'User',
-              studentId: user?.userId || 'N/A',
-              status: user?.role || 'User',
-              department: 'Administration'
-            }
-          });
+           setUser(currentUser);
         }
       } catch (err) {
-        setError(err.message || 'Failed to load profile');
+        console.error(err);
+        setUser(authApi.getCurrentUser());
       } finally {
         setLoading(false);
       }
     };
     fetchProfile();
-  }, [user?.role, user?.userId, user?.name]);
+  }, []);
 
-  if (loading) {
-    return (
-      <div className="min-h-screen bg-slate-50 flex items-center justify-center">
-        <FaSpinner className="w-8 h-8 text-blue-600 animate-spin" />
-      </div>
-    );
-  }
-
-  if (error) {
-    return (
-      <div className="min-h-screen bg-slate-50 flex flex-col items-center justify-center p-4">
-        <div className="bg-red-50 border border-red-200 text-red-700 px-6 py-4 rounded-xl max-w-md text-center">
-          <FaExclamationTriangle className="w-12 h-12 mx-auto mb-4" />
-          <h2 className="text-lg font-bold mb-2">Error Loading Profile</h2>
-          <p className="text-sm mb-4">{error}</p>
-          <button
-            onClick={() => window.location.reload()}
-            className="bg-red-600 text-white px-4 py-2 rounded-lg text-sm font-semibold"
-          >
-            Retry
-          </button>
-        </div>
-      </div>
-    );
-  }
-
-  const student = profileData?.student || {};
-  const stats = profileData?.quickStats || {};
-  const displayName = user?.name || student.name || 'User';
-
-  const rawType = student.studentType || student.sponsorship || '';
-  const t = String(rawType).toLowerCase();
-  let studentTypeLabel = rawType || 'Not Set';
-  if (t.includes('self')) {
-    studentTypeLabel = 'Self Sponsored';
-  } else if (t.includes('government')) {
-    studentTypeLabel = 'Government Sponsorship';
-  } else if (t.includes('special')) {
-    studentTypeLabel = 'Special Needs';
-  } else if (t.includes('staff')) {
-    studentTypeLabel = 'Staff Relatives';
-  }
-
-  const isAdmin = ['Admin', 'CampusAdmin', 'SuperAdmin'].includes(user?.role);
-
-  const startNameEdit = () => {
-    setNameDraft(displayName);
-    setIsEditingName(true);
-  };
-
-  const cancelNameEdit = () => {
-    setIsEditingName(false);
-    setNameDraft('');
-  };
-
-  const saveName = async () => {
-    const trimmed = String(nameDraft || '').trim();
-    if (!trimmed) {
-      toast.error('Name cannot be empty');
+  const handlePasswordUpdate = async (e) => {
+    e.preventDefault();
+    if (passwords.new !== passwords.confirm) {
+      alert("Passwords do not match");
       return;
     }
-
     try {
-      setSavingName(true);
-      const res = await authApi.updateProfile({ name: trimmed });
-      if (!res?.success) {
-        throw new Error(res?.message || 'Failed to update name');
-      }
-
-      const currentUser = authApi.getCurrentUser();
-      if (currentUser) {
-        localStorage.setItem('user', JSON.stringify({ ...currentUser, name: res.data?.name || trimmed }));
-        window.dispatchEvent(new Event('storage'));
-      }
-
-      setProfileData((prev) => ({
-        ...(prev || {}),
-        student: {
-          ...(prev?.student || {}),
-          name: res.data?.name || trimmed,
-        },
-      }));
-
-      setIsEditingName(false);
-      toast.success('Name updated successfully');
-      window.location.reload();
-    } catch (e) {
-      toast.error(e?.message || 'Failed to update name');
+      setUpdating(true);
+      await authApi.updatePassword({
+        currentPassword: passwords.current,
+        newPassword: passwords.new
+      });
+      alert("Password updated successfully");
+      setShowPasswordModal(false);
+      setPasswords({ current: '', new: '', confirm: '' });
+    } catch (err) {
+      alert(err.message || "Failed to update password");
     } finally {
-      setSavingName(false);
+      setUpdating(false);
     }
   };
 
-  const ProfileContent = (
-    <section className="px-2 sm:px-4 py-4 sm:py-6">
-      <div className="max-w-6xl mx-auto grid grid-cols-1 lg:grid-cols-3 gap-6">
-          {/* Left column: main profile card */}
-          <div className="lg:col-span-1 space-y-4">
-            <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-8 flex flex-col items-center">
-              <div className="relative mb-6">
-                <ProfilePictureUpload 
-                  currentImage={user?.profilePicture} 
-                  onUploadSuccess={(newPath) => {
-                    const updatedUser = { ...user, profilePicture: newPath };
-                    localStorage.setItem('user', JSON.stringify(updatedUser));
-                    window.location.reload();
-                  }}
-                />
-                <div className="absolute -top-2 -right-2 px-3 py-1 rounded-full bg-emerald-50 border border-emerald-200 text-emerald-700 text-xs font-bold shadow-sm">
-                  {student.status === 'Assigned' ? 'Active Resident' : student.status || 'Active'}
-                </div>
-              </div>
-
-              <div className="w-full flex items-center justify-center gap-2 mb-1">
-                {isEditingName ? (
-                  <>
-                    <input
-                      type="text"
-                      value={nameDraft}
-                      onChange={(e) => setNameDraft(e.target.value)}
-                      className="max-w-[260px] px-3 py-2 border border-slate-200 rounded-lg text-sm font-semibold text-slate-900"
-                      placeholder="Enter your full name"
-                    />
-                    <button
-                      type="button"
-                      onClick={saveName}
-                      disabled={savingName}
-                      className="p-2 rounded-lg bg-emerald-600 text-white disabled:opacity-60"
-                      title="Save name"
-                    >
-                      {savingName ? <FaSpinner className="w-3 h-3 animate-spin" /> : <FaSave className="w-3 h-3" />}
-                    </button>
-                    <button
-                      type="button"
-                      onClick={cancelNameEdit}
-                      disabled={savingName}
-                      className="p-2 rounded-lg bg-slate-100 text-slate-700"
-                      title="Cancel"
-                    >
-                      <FaTimes className="w-3 h-3" />
-                    </button>
-                  </>
-                ) : (
-                  <>
-                    <h2 className="text-xl font-bold text-slate-900">{displayName}</h2>
-                    {user?.role !== 'Student' && (
-                      <button
-                        type="button"
-                        onClick={startNameEdit}
-                        className="p-2 rounded-lg text-slate-400 hover:text-blue-600"
-                        title="Edit name"
-                      >
-                        <FaEdit className="w-4 h-4" />
-                      </button>
-                    )}
-                  </>
-                )}
-              </div>
-              <p className="text-sm text-slate-500 mb-6 font-medium">ID: {student.studentId || user?.userID}</p>
-
-              <div className="flex gap-3 w-full">
-                <button className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl border border-slate-200 text-sm font-semibold text-slate-700 hover:bg-slate-50 transition-colors">
-                  <FaEnvelope className="w-4 h-4 text-slate-400" />
-                  Email
-                </button>
-                <button className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl border border-slate-200 text-sm font-semibold text-slate-700 hover:bg-slate-50 transition-colors">
-                  <FaPhone className="w-4 h-4 text-slate-400" />
-                  Call
-                </button>
-              </div>
-
-              <div className="w-full mt-8 pt-6 border-t border-slate-100 space-y-4">
-                <div className="flex justify-between items-center text-sm">
-                  <span className="text-slate-500">{['Student', 'EventPoster', 'Vendor'].includes(user?.role) ? 'Department' : 'Position'}</span>
-                  <span className="font-semibold text-slate-800">{['Student', 'EventPoster', 'Vendor'].includes(user?.role) ? student.department : 'System Administrator'}</span>
-                </div>
-                {['Student', 'EventPoster', 'Vendor'].includes(user?.role) && (
-                  <div className="flex justify-between items-center text-sm">
-                    <span className="text-slate-500">Year of Study</span>
-                    <span className="font-semibold text-slate-800">Year {student.yearOfStudy}</span>
-                  </div>
-                )}
-                <div className="flex justify-between items-center text-sm">
-                  <span className="text-slate-500">Gender</span>
-                  <span className="font-semibold text-slate-800">{['Student', 'EventPoster', 'Vendor'].includes(user?.role) ? student.gender : user?.gender || 'N/A'}</span>
-                </div>
-              </div>
-            </div>
-
-            <div className="bg-blue-50/50 rounded-2xl border border-blue-100 p-5 text-sm text-slate-600">
-              <div className="flex items-start gap-4">
-                <div className="w-8 h-8 rounded-lg bg-blue-100 flex items-center justify-center text-blue-600 shrink-0">
-                  <FaCheckCircle className="w-4 h-4" />
-                </div>
-                <div>
-                  <h4 className="font-bold text-blue-900 mb-1">Status Verified</h4>
-                  <p className="text-blue-700/80 leading-relaxed">
-                    Account status is active. All administrative permissions have been successfully granted.
-                  </p>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          {/* Right column: Details */}
-          <div className="lg:col-span-2 space-y-6">
-            <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-6">
-              <div className="flex items-center gap-2 mb-6">
-                <div className="w-2 h-6 bg-blue-600 rounded-full"></div>
-                <h3 className="text-lg font-bold text-slate-900">
-                  Personnel Details
-                </h3>
-              </div>
-
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-x-12 gap-y-8">
-                <div className="space-y-1">
-                  <p className="text-xs font-bold uppercase text-slate-400">Full Name</p>
-                  <p className="font-medium text-slate-800">{user?.name || student.name}</p>
-                </div>
-                <div className="space-y-1">
-                  <p className="text-xs font-bold uppercase text-slate-400">Role Authority</p>
-                  <p className="inline-flex items-center gap-2 px-2.5 py-1 rounded-lg bg-indigo-50 text-indigo-700 text-xs font-bold">
-                    {user?.role || 'Admin'}
-                  </p>
-                </div>
-                <div className="space-y-1">
-                  <p className="text-xs font-bold uppercase text-slate-400">Campus Jurisdiction</p>
-                  <p className="font-medium text-slate-800 flex items-center gap-2">
-                    <FaMapMarkerAlt className="text-slate-300 w-3 h-3" />
-                    {user?.campus || student.campus || 'Global / Main Campus'}
-                  </p>
-                </div>
-                <div className="space-y-1">
-                  <p className="text-xs font-bold uppercase text-slate-400">Security Email</p>
-                  <p className="text-blue-600 font-medium">{user?.email || 'N/A'}</p>
-                </div>
-              </div>
-            </div>
-
-            {/* Security Card */}
-            <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-6">
-              <div className="flex items-center justify-between mb-4">
-                <div className="flex items-center gap-2">
-                  <div className="w-8 h-8 rounded-xl bg-slate-900 text-white flex items-center justify-center">
-                    <FaLock className="w-4 h-4" />
-                  </div>
-                  <div>
-                    <h3 className="text-sm font-bold text-slate-900">Account Security</h3>
-                    <p className="text-xs text-slate-500">Update your credentials.</p>
-                  </div>
-                </div>
-                <Link to="/change-password" title="Change Password" className="text-xs font-semibold text-blue-600 hover:text-blue-700">
-                  Update Password
-                </Link>
-              </div>
-            </div>
-
-            {/* Conditional Resident Info */}
-            {['Student', 'EventPoster', 'Vendor'].includes(user?.role) && (
-               <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-6 overflow-hidden relative">
-                 <div className="absolute top-0 right-0 w-32 h-32 bg-blue-50 rounded-full -mr-16 -mt-16 opacity-50"></div>
-                 <div className="flex items-center justify-between mb-8 relative z-10">
-                   <div className="flex items-center gap-2">
-                     <div className="w-2 h-6 bg-blue-600 rounded-full"></div>
-                     <h3 className="text-lg font-bold text-slate-900">Assigned Dormitory</h3>
-                   </div>
-                 </div>
-                 <div className="grid grid-cols-1 md:grid-cols-3 gap-8 relative z-10">
-                   <div className="flex items-start gap-4">
-                     <div className="w-12 h-12 rounded-2xl bg-slate-50 border border-slate-100 flex items-center justify-center shrink-0">
-                       <BuildingIcon className="w-6 h-6 text-blue-600" />
-                     </div>
-                     <div>
-                       <p className="text-[10px] font-bold uppercase text-slate-400 mb-1 tracking-wider">Building</p>
-                       <p className="font-bold text-slate-800">{student.dormitory || 'Pending'}</p>
-                     </div>
-                   </div>
-                   {/* ... more items ... */}
-                 </div>
-               </div>
-            )}
-          </div>
+  if (loading) return (
+    <DashboardLayout>
+      <div className="min-h-[60vh] flex items-center justify-center">
+        <div className="w-12 h-12 border-4 border-slate-900 border-t-transparent rounded-full animate-spin"></div>
       </div>
-    </section>
+    </DashboardLayout>
   );
-
-  if (isAdmin) {
-    return (
-      <div className="flex-1 overflow-y-auto">
-        <div className="bg-white border-b border-slate-200 py-6 px-4 mb-6">
-          <div className="max-w-6xl mx-auto">
-            <h1 className="text-2xl font-black text-slate-900 tracking-tight">Administrative Profile</h1>
-            <p className="text-xs font-bold text-indigo-600 uppercase tracking-widest mt-1">Management Portal / User Settings</p>
-          </div>
-        </div>
-        {ProfileContent}
-      </div>
-    );
-  }
 
   return (
     <DashboardLayout
-      title="My Profile"
-      breadcrumbs={[
-        { label: 'Dashboard', path: user?.role === 'Proctor' ? '/proctor/dashboard' : '/student-portal' },
-        { label: 'Profile' }
-      ]}
-      showPageHeader={true}
+      title="Digital Identity"
+      breadcrumbs={[{ label: 'Portal', path: '/student-portal' }, { label: 'Identity' }]}
     >
-      {ProfileContent}
+      <div className="max-w-4xl mx-auto space-y-12 pb-20 animate-fade-in">
+        {/* Profile Identity Card - The "Digital ID" */}
+        <section className="relative overflow-hidden rounded-[3rem] bg-slate-900 p-8 sm:p-12 text-white shadow-2xl group">
+           {/* Animated Background Elements */}
+           <div className="absolute top-0 right-0 w-96 h-96 bg-blue-600/20 rounded-full -mr-48 -mt-48 blur-3xl group-hover:scale-110 transition-transform duration-1000"></div>
+           <div className="absolute bottom-0 left-0 w-64 h-64 bg-indigo-600/10 rounded-full -ml-32 -mb-32 blur-3xl group-hover:scale-110 transition-transform duration-1000"></div>
+           
+           <div className="relative z-10 flex flex-col md:flex-row gap-12 items-center md:items-start">
+             <div className="shrink-0 space-y-4 text-center">
+               <div className="relative inline-block">
+                 <div className="w-48 h-48 rounded-[3rem] bg-white/10 backdrop-blur-md border-4 border-white/20 p-2 overflow-hidden flex items-center justify-center shadow-2xl relative">
+                    {user?.profilePicture ? (
+                      <img src={user.profilePicture} alt="" className="w-full h-full object-cover rounded-[2.5rem]" />
+                    ) : (
+                      <FaUser className="w-20 h-20 text-white/20" />
+                    )}
+                    {/* Scanning animation effect */}
+                    <div className="absolute inset-0 bg-gradient-to-b from-transparent via-blue-400/20 to-transparent h-1/4 w-full animate-[scan_3s_ease-in-out_infinite]"></div>
+                 </div>
+                 <div className="absolute -bottom-4 left-1/2 -translate-x-1/2 px-4 py-1.5 bg-emerald-500 rounded-full text-[10px] font-black uppercase tracking-widest border-4 border-slate-900 flex items-center gap-2">
+                    <FaCheckCircle className="w-3 h-3" /> VERIFIED ID
+                 </div>
+               </div>
+               <div className="pt-4">
+                  <h3 className="text-[10px] font-black text-blue-300 uppercase tracking-widest mb-1">Authorization</h3>
+                  <p className="text-sm font-bold bg-white/10 px-3 py-1 rounded-lg inline-block">LVL 4 RESIDENT</p>
+               </div>
+             </div>
+
+             <div className="flex-1 space-y-8 text-center md:text-left w-full">
+                <div>
+                   <h1 className="text-4xl sm:text-6xl font-black tracking-tighter mb-2 leading-none">{user?.name}</h1>
+                   <p className="text-lg text-white/60 font-medium font-mono">NODE_ID: {user?.studentId || user?.userId || 'N/A'}</p>
+                </div>
+                
+                <div className="grid grid-cols-2 md:grid-cols-3 gap-6 pt-8 border-t border-white/10">
+                   <div>
+                     <p className="text-[10px] font-black text-white/40 uppercase tracking-widest mb-1">Tenure</p>
+                     <p className="text-lg font-bold">Year {user?.yearOfStudy || user?.year || '1'}</p>
+                   </div>
+                   <div>
+                     <p className="text-[10px] font-black text-white/40 uppercase tracking-widest mb-1">District</p>
+                     <p className="text-lg font-bold">{user?.campus || 'Main'}</p>
+                   </div>
+                   <div className="col-span-2 md:col-span-1">
+                     <p className="text-[10px] font-black text-white/40 uppercase tracking-widest mb-1">Division</p>
+                     <p className="text-lg font-bold truncate">{user?.department || 'Information Systems'}</p>
+                   </div>
+                </div>
+
+                <div className="flex flex-wrap justify-center md:justify-start gap-4">
+                   <button onClick={() => setShowPasswordModal(true)} className="px-8 py-4 bg-white text-slate-900 rounded-2xl font-black text-xs hover:bg-blue-50 transition-all flex items-center gap-3 shadow-xl shadow-white/10">
+                      <FaLock className="w-3 h-3" /> RE-AUTHENTICATE
+                   </button>
+                   <button className="px-8 py-4 bg-white/10 border border-white/20 text-white rounded-2xl font-black text-xs hover:bg-white/20 transition-all flex items-center gap-3">
+                      <FaEnvelope className="w-3 h-3" /> BROADCAST LOGS
+                   </button>
+                </div>
+             </div>
+           </div>
+        </section>
+
+        {/* Details Grid */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+           <section className="glass-effect rounded-[2.5rem] p-10 border border-white shadow-xl shadow-slate-200/40 hover:shadow-blue-500/5 transition-all">
+              <h3 className="text-xl font-black text-slate-900 mb-8 flex items-center gap-4">
+                 <div className="w-10 h-10 bg-blue-50 rounded-xl flex items-center justify-center text-blue-600">
+                    <FaIdCardAlt />
+                 </div>
+                 Academic Footprint
+              </h3>
+              <div className="space-y-6">
+                 {[
+                   { label: 'Full Legal Identity', value: user?.name, icon: FaUser },
+                   { label: 'System Registration ID', value: user?.studentId || user?.userId, icon: FaIdBadge },
+                   { label: 'Educational Track', value: user?.department, icon: FaUniversity },
+                   { label: 'Assigned Habitation', value: user?.roomNumber ? `Block ${user.dormitory}, Room ${user.roomNumber}` : 'Pending Assignment', icon: FaBuilding }
+                 ].map((item, i) => (
+                   <div key={i} className="flex items-center gap-5 p-5 bg-white border border-slate-100 rounded-2xl hover:border-blue-200 transition-colors group">
+                      <div className="w-12 h-12 bg-slate-50 rounded-xl flex items-center justify-center text-slate-400 group-hover:text-blue-500 transition-colors">
+                         <item.icon className="w-5 h-5" />
+                      </div>
+                      <div>
+                         <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-0.5">{item.label}</p>
+                         <p className="text-sm font-bold text-slate-800">{item.value || 'Not Configured'}</p>
+                      </div>
+                   </div>
+                 ))}
+              </div>
+           </section>
+
+           <section className="glass-effect rounded-[2.5rem] p-10 border border-white shadow-xl shadow-slate-200/40 hover:shadow-emerald-500/5 transition-all">
+              <h3 className="text-xl font-black text-slate-900 mb-8 flex items-center gap-4">
+                 <div className="w-10 h-10 bg-emerald-50 rounded-xl flex items-center justify-center text-emerald-600">
+                    <FaShieldAlt />
+                 </div>
+                 Security Protocols
+              </h3>
+              <div className="space-y-6">
+                 {[
+                   { label: 'Communication Node', value: user?.email, icon: FaEnvelope },
+                   { label: 'Mobile Interface', value: user?.phone || '+251 900 000 000', icon: FaPhone },
+                   { label: 'Last System Handshake', value: new Date().toLocaleDateString(), icon: FaClock },
+                   { label: 'Access Permissions', value: user?.role?.toUpperCase() || 'RESIDENT', icon: FaLock }
+                 ].map((item, i) => (
+                   <div key={i} className="flex items-center gap-5 p-5 bg-white border border-slate-100 rounded-2xl hover:border-emerald-200 transition-colors group">
+                      <div className="w-12 h-12 bg-slate-50 rounded-xl flex items-center justify-center text-slate-400 group-hover:text-emerald-500 transition-colors">
+                         <item.icon className="w-5 h-5" />
+                      </div>
+                      <div>
+                         <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-0.5">{item.label}</p>
+                         <p className="text-sm font-bold text-slate-800">{item.value || 'N/A'}</p>
+                      </div>
+                   </div>
+                 ))}
+              </div>
+           </section>
+        </div>
+
+        {/* Security Modal */}
+        {showPasswordModal && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xl animate-fade-in">
+             <div className="bg-white rounded-[3rem] w-full max-w-md p-10 shadow-2xl relative overflow-hidden">
+                <div className="absolute top-0 right-0 w-32 h-32 bg-blue-50 rounded-full -mr-16 -mt-16"></div>
+                <div className="relative z-10">
+                   <h2 className="text-3xl font-black text-slate-900 mb-2 tracking-tight">Security Override</h2>
+                   <p className="text-slate-500 font-medium mb-8">Update your cryptographic access token to maintain residency security.</p>
+                   
+                   <form onSubmit={handlePasswordUpdate} className="space-y-6">
+                      <div className="space-y-4">
+                         <div className="relative">
+                            <input 
+                              type="password" 
+                              placeholder="Current Token" 
+                              className="w-full px-6 py-4 bg-slate-50 border border-slate-100 rounded-2xl focus:outline-none focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 font-bold"
+                              value={passwords.current}
+                              onChange={e => setPasswords({...passwords, current: e.target.value})}
+                            />
+                         </div>
+                         <input 
+                           type="password" 
+                           placeholder="New Secure Signature" 
+                           className="w-full px-6 py-4 bg-slate-50 border border-slate-100 rounded-2xl focus:outline-none focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 font-bold"
+                           value={passwords.new}
+                           onChange={e => setPasswords({...passwords, new: e.target.value})}
+                         />
+                         <input 
+                           type="password" 
+                           placeholder="Confirm New Signature" 
+                           className="w-full px-6 py-4 bg-slate-50 border border-slate-100 rounded-2xl focus:outline-none focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 font-bold"
+                           value={passwords.confirm}
+                           onChange={e => setPasswords({...passwords, confirm: e.target.value})}
+                         />
+                      </div>
+                      <div className="flex gap-4 pt-4">
+                         <button type="button" onClick={() => setShowPasswordModal(false)} className="flex-1 py-4 bg-slate-100 text-slate-500 rounded-2xl font-black text-xs hover:bg-slate-200 transition-all">
+                            ABORT
+                         </button>
+                         <button disabled={updating} type="submit" className="flex-[2] py-4 bg-slate-900 text-white rounded-2xl font-black text-xs hover:scale-105 active:scale-95 transition-all shadow-xl shadow-slate-900/20">
+                            {updating ? 'HASHING...' : 'COMMIT CHANGES'}
+                         </button>
+                      </div>
+                   </form>
+                </div>
+             </div>
+          </div>
+        )}
+      </div>
+      
+      <style dangerouslySetInnerHTML={{ __html: `
+        @keyframes scan {
+          0%, 100% { top: 0; }
+          50% { top: 75%; }
+        }
+      `}} />
     </DashboardLayout>
   );
 }
-
-

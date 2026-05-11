@@ -32,18 +32,12 @@ export default function RoomDetails() {
   const [selectedDate, setSelectedDate] = useState(null);
   const [showMoreDormmates, setShowMoreDormmates] = useState(false);
   const [tasks, setTasks] = useState([
-    { id: 1, title: 'Take out trash', assignedTo: 'You', dueDate: 'Today', dueTime: '8:00 PM', completed: false },
-    { id: 2, title: 'Vacuum Floor', assignedTo: 'Sara', dueDate: 'Tomorrow', dueTime: '', completed: false },
-    { id: 3, title: 'Clean Bathroom', assignedTo: 'Hanna', dueDate: 'Oct 28', dueTime: '10:00 AM', completed: true },
-    { id: 4, title: 'Wipe Windows', assignedTo: 'You', dueDate: 'Oct 29', dueTime: '3:00 PM', completed: false }
+    { id: 1, title: 'Waste Management', assignedTo: 'You', dueDate: 'Today', dueTime: '8:00 PM', completed: false, category: 'Sanitation' },
+    { id: 2, title: 'Floor Sanitation', assignedTo: 'Sara', dueDate: 'Tomorrow', dueTime: '', completed: false, category: 'Cleaning' },
+    { id: 3, title: 'Lavatory Care', assignedTo: 'Hanna', dueDate: 'Oct 28', dueTime: '10:00 AM', completed: true, category: 'Sanitation' }
   ]);
   const [showTaskForm, setShowTaskForm] = useState(false);
-  const [newTask, setNewTask] = useState({
-    title: '',
-    assignedTo: 'You',
-    dueDate: '',
-    dueTime: ''
-  });
+  const [newTask, setNewTask] = useState({ title: '', assignedTo: 'You', dueDate: '', dueTime: '' });
 
   useEffect(() => {
     fetchRoomDetails();
@@ -60,7 +54,6 @@ export default function RoomDetails() {
         setProctor(res.proctor);
       }
     } catch (err) {
-      // Don't treat "No room assigned yet" as a hard error UI-wise
       if (err.message === 'No room assigned yet') {
         setRoomData(null);
       } else {
@@ -70,8 +63,6 @@ export default function RoomDetails() {
       setLoading(false);
     }
   };
-
-  const displayedDormmates = showMoreDormmates ? roommates : roommates.slice(0, 4);
 
   const getFloorSuffix = (floor) => {
     const f = parseInt(floor);
@@ -84,7 +75,6 @@ export default function RoomDetails() {
   };
 
   const userData = roomData ? {
-    name: authApi.getCurrentUser()?.name || 'Student',
     block: roomData.building || 'N/A',
     campus: (roomData.campus || 'Main') + ' Campus',
     room: roomData.roomNumber || 'N/A',
@@ -94,434 +84,227 @@ export default function RoomDetails() {
     block: 'Not Assigned',
     campus: 'Main Campus',
     room: 'TBD',
-    floor: 'Pending Assignment',
-    status: 'Pending'
+    floor: 'Pending',
+    status: 'Inactive'
   };
-
-  // Calendar generation
-  const generateCalendar = () => {
-    const firstDay = new Date(currentYear, currentMonth, 1);
-    const lastDay = new Date(currentYear, currentMonth + 1, 0);
-    const daysInMonth = lastDay.getDate();
-    const startingDay = firstDay.getDay();
-
-    const days = [];
-
-    for (let i = 0; i < startingDay; i++) {
-      days.push(null);
-    }
-
-    for (let i = 1; i <= daysInMonth; i++) {
-      const date = new Date(currentYear, currentMonth, i);
-      const isToday = date.toDateString() === new Date().toDateString();
-      const hasTask = [2, 5, 15, 20, 25].includes(i);
-      days.push({
-        date: i,
-        isToday,
-        hasTask,
-        isSelected: selectedDate === i
-      });
-    }
-
-    return days;
-  };
-
-  const calendarDays = generateCalendar();
-  const monthNames = ["January", "February", "March", "April", "May", "June",
-    "July", "August", "September", "October", "November", "December"
-  ];
 
   const handleTaskToggle = (taskId) => {
-    setTasks(tasks.map(task =>
-      task.id === taskId ? { ...task, completed: !task.completed } : task
-    ));
+    setTasks(tasks.map(task => task.id === taskId ? { ...task, completed: !task.completed } : task));
   };
 
-  const handleDeleteTask = (taskId) => {
-    setTasks(tasks.filter(task => task.id !== taskId));
-  };
-
-  const handleEditTask = (taskId) => {
-    console.log('Edit task:', taskId);
-  };
-
-  const handleAddTask = () => {
-    if (newTask.title.trim()) {
-      const newTaskObj = {
-        id: tasks.length + 1,
-        title: newTask.title,
-        assignedTo: newTask.assignedTo,
-        dueDate: newTask.dueDate || 'Today',
-        dueTime: newTask.dueTime || '',
-        completed: false
-      };
-      setTasks([...tasks, newTaskObj]);
-      setNewTask({ title: '', assignedTo: 'You', dueDate: '', dueTime: '' });
-      setShowTaskForm(false);
-    }
-  };
-
-  const handleMonthChange = (direction) => {
-    if (direction === 'next') {
-      if (currentMonth === 11) {
-        setCurrentMonth(0);
-        setCurrentYear(currentYear + 1);
-      } else {
-        setCurrentMonth(currentMonth + 1);
-      }
-    } else {
-      if (currentMonth === 0) {
-        setCurrentMonth(11);
-        setCurrentYear(currentYear - 1);
-      } else {
-        setCurrentMonth(currentMonth - 1);
-      }
-    }
-  };
-
-  const handleDateSelect = (date) => {
-    setSelectedDate(date);
-  };
+  if (loading) {
+    return (
+      <DashboardLayout>
+        <div className="min-h-[60vh] flex items-center justify-center">
+          <div className="text-center">
+            <div className="w-16 h-16 border-4 border-blue-600 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+            <p className="text-slate-600 font-bold uppercase tracking-widest text-[10px]">Syncing Residency Data...</p>
+          </div>
+        </div>
+      </DashboardLayout>
+    );
+  }
 
   return (
     <DashboardLayout
-      title="Room Details"
-      breadcrumbs={[
-        { label: 'Dashboard', path: '/dashboard' },
-        { label: `Room ${userData.room}` }
-      ]}
+      title="My Residency"
+      breadcrumbs={[{ label: 'Portal', path: '/student-portal' }, { label: 'Room Intelligence' }]}
     >
-      {loading ? (
-        <div className="flex items-center justify-center min-h-[400px]">
-          <div className="w-12 h-12 border-4 border-blue-600 border-t-transparent rounded-full animate-spin"></div>
-        </div>
-      ) : error ? (
-        <div className="bg-red-50 text-red-700 p-6 rounded-xl border border-red-200 text-center">
-          <p className="font-bold mb-2">Error</p>
-          <p>{error}</p>
-          <button onClick={fetchRoomDetails} className="mt-4 px-4 py-2 bg-red-600 text-white rounded-lg">Retry</button>
-        </div>
-      ) : (
-        <div className="max-w-7xl mx-auto grid grid-cols-1 lg:grid-cols-3 gap-6">
-          {/* Left Column - Main Content */}
-          <div className="lg:col-span-2 space-y-6">
-            {/* My Dorm Assignment */}
-            <div className="bg-white rounded-xl p-6 shadow-sm border border-slate-200">
-              <h1 className="text-2xl font-bold text-slate-900 mb-6">My Dorm Assignment</h1>
-
-              {/* Student Residence with Building Image */}
-              <div className="relative rounded-lg mb-6 overflow-hidden h-48">
-                <img
-                  src={building}
-                  alt="Student Residence Building"
-                  className="w-full h-full object-cover"
-                />
-              </div>
-
-              {/* Block Information */}
-              <div className="mb-6">
-                <h2 className="text-5xl font-bold text-slate-900 mb-2">{userData.block}</h2>
-                <div className="flex items-center gap-2 text-slate-600">
-                  <FaMapMarkerAlt className="w-4 h-4" />
-                  <span className="text-sm">{userData.campus}, {userData.block}</span>
-                </div>
-              </div>
-
-              {/* Assigned Room */}
-              <div className="flex items-center justify-between pt-6 border-t border-slate-200">
-                <div>
-                  <p className="text-sm text-slate-600 mb-1">Assigned Room</p>
-                  <p className="text-3xl font-bold text-slate-900">
-                    {userData.room} / {userData.floor}
-                  </p>
-                </div>
-                <div className="flex items-center gap-2 px-4 py-2 bg-green-100 text-green-700 rounded-full">
-                  <FaCheck className="w-4 h-4" />
-                  <span className="font-semibold">{userData.status}</span>
-                </div>
-              </div>
-            </div>
-
-            {/* Compact Real Calendar Schedule */}
-            <div className="bg-white rounded-xl p-5 shadow-sm border border-slate-200">
-              <div className="flex items-center gap-2 mb-3">
-                <FaCalendarAlt className="w-4 h-4 text-blue-600" />
-                <h2 className="text-lg font-bold text-slate-900">Cleaning Schedule</h2>
-              </div>
-              <p className="text-xs text-slate-600 mb-3">Collaborative tasks for Room {userData.room}</p>
-
-              {/* Compact Calendar Header */}
-              <div className="flex items-center justify-between mb-3">
-                <button
-                  onClick={() => handleMonthChange('prev')}
-                  className="p-1 hover:bg-slate-100 rounded transition-colors"
-                >
-                  <FaChevronLeft className="w-3 h-3 text-slate-600" />
-                </button>
-                <span className="text-sm font-semibold text-slate-700">
-                  {monthNames[currentMonth].substring(0, 3)} {currentYear}
-                </span>
-                <button
-                  onClick={() => handleMonthChange('next')}
-                  className="p-1 hover:bg-slate-100 rounded transition-colors"
-                >
-                  <FaChevronRight className="w-3 h-3 text-slate-600" />
-                </button>
-              </div>
-
-              {/* Compact Calendar Days Grid */}
-              <div className="grid grid-cols-7 gap-0.5 mb-1">
-                {['S', 'M', 'T', 'W', 'T', 'F', 'S'].map((day) => (
-                  <div key={day} className="text-center py-1">
-                    <p className="text-xs font-medium text-slate-500 text-[10px]">{day}</p>
-                  </div>
-                ))}
-              </div>
-
-              <div className="grid grid-cols-7 gap-0.5">
-                {calendarDays.map((day, index) => (
-                  <div
-                    key={index}
-                    className={`text-center p-1 rounded min-h-8 flex flex-col items-center justify-center cursor-pointer ${day === null
-                      ? 'invisible'
-                      : day.isSelected
-                        ? 'bg-blue-600 text-white'
-                        : day.isToday
-                          ? 'bg-blue-100 text-blue-600'
-                          : 'hover:bg-slate-100'
-                      }`}
-                    onClick={() => day && handleDateSelect(day.date)}
-                  >
-                    {day && (
-                      <>
-                        <p className={`text-xs font-medium ${day.isSelected ? 'text-white' :
-                          day.isToday ? 'text-blue-600' :
-                            'text-slate-700'
-                          }`}>
-                          {day.date}
-                        </p>
-                        {day.hasTask && (
-                          <div className="w-1 h-1 mt-0.5 rounded-full bg-blue-500"></div>
-                        )}
-                      </>
-                    )}
-                  </div>
-                ))}
-              </div>
-
-              {/* Compact Calendar Legend */}
-              <div className="flex items-center justify-center gap-3 mt-3 pt-3 border-t border-slate-200">
-                <div className="flex items-center gap-1">
-                  <div className="w-2 h-2 rounded-full bg-blue-600"></div>
-                  <span className="text-[10px] text-slate-600">Selected</span>
-                </div>
-                <div className="flex items-center gap-1">
-                  <div className="w-2 h-2 rounded-full bg-blue-100"></div>
-                  <span className="text-[10px] text-slate-600">Today</span>
-                </div>
-                <div className="flex items-center gap-1">
-                  <div className="w-2 h-2 rounded-full bg-blue-500"></div>
-                  <span className="text-[10px] text-slate-600">Task</span>
-                </div>
-              </div>
-            </div>
-
-            {/* Upcoming Tasks */}
-            <div className="bg-white rounded-xl p-6 shadow-sm border border-slate-200">
-              <div className="flex items-center justify-between mb-4">
-                <h2 className="text-xl font-bold text-slate-900">Upcoming Tasks</h2>
-              </div>
-
-              <div className="space-y-3 mb-4">
-                {tasks.map((task) => (
-                  <div
-                    key={task.id}
-                    className="flex items-center gap-3 p-3 rounded-lg hover:bg-slate-50 transition-colors group"
-                  >
-                    <button
-                      onClick={() => handleTaskToggle(task.id)}
-                      className={`w-5 h-5 rounded border-2 flex items-center justify-center flex-shrink-0 ${task.completed
-                        ? 'bg-blue-600 border-blue-600'
-                        : 'border-slate-300'
-                        }`}
-                    >
-                      {task.completed && <FaCheck className="w-3 h-3 text-white" />}
-                    </button>
-                    <div className="flex-1 min-w-0">
-                      <p className={`font-medium truncate ${task.completed ? 'line-through text-slate-400' : 'text-slate-800'}`}>
-                        {task.title}
-                      </p>
-                      <p className="text-xs text-slate-500 truncate">
-                        Assigned to {task.assignedTo} • Due {task.dueDate} {task.dueTime && `• ${task.dueTime}`}
-                      </p>
-                    </div>
-                    <div className="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                      <button
-                        onClick={() => handleEditTask(task.id)}
-                        className="p-1 text-blue-600 hover:text-blue-700"
-                        title="Edit task"
-                      >
-                        <FaEdit className="w-3 h-3" />
-                      </button>
-                      <button
-                        onClick={() => handleDeleteTask(task.id)}
-                        className="p-1 text-red-600 hover:text-red-700"
-                        title="Delete task"
-                      >
-                        <FaTrash className="w-3 h-3" />
-                      </button>
-                    </div>
-                  </div>
-                ))}
-              </div>
-
-              {/* Add New Task Form */}
-              {showTaskForm ? (
-                <div className="mb-4 p-4 border border-slate-200 rounded-lg bg-slate-50">
-                  <h3 className="font-medium text-slate-800 mb-3">Add New Task</h3>
-                  <div className="space-y-3">
-                    <input
-                      type="text"
-                      placeholder="Task title"
-                      value={newTask.title}
-                      onChange={(e) => setNewTask({ ...newTask, title: e.target.value })}
-                      className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    />
-                    <div className="grid grid-cols-2 gap-3">
-                      <input
-                        type="text"
-                        placeholder="Due date (e.g., Tomorrow)"
-                        value={newTask.dueDate}
-                        onChange={(e) => setNewTask({ ...newTask, dueDate: e.target.value })}
-                        className="px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                      />
-                      <input
-                        type="text"
-                        placeholder="Time (optional)"
-                        value={newTask.dueTime}
-                        onChange={(e) => setNewTask({ ...newTask, dueTime: e.target.value })}
-                        className="px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                      />
-                    </div>
-                    <div className="flex justify-end gap-2">
-                      <button
-                        onClick={() => setShowTaskForm(false)}
-                        className="px-4 py-2 text-slate-600 hover:text-slate-800"
-                      >
-                        Cancel
-                      </button>
-                      <button
-                        onClick={handleAddTask}
-                        className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium"
-                      >
-                        Add Task
-                      </button>
-                    </div>
-                  </div>
-                </div>
-              ) : (
-                <button
-                  onClick={() => setShowTaskForm(true)}
-                  className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium transition-colors"
-                >
-                  <FaPlus className="w-4 h-4" />
-                  Add New Task
-                </button>
-              )}
-            </div>
+      <div className="max-w-7xl mx-auto space-y-10 pb-20">
+        {/* Room Identity Hero */}
+        <section className="relative overflow-hidden rounded-[3rem] bg-slate-900 min-h-[350px] flex items-center p-8 sm:p-16 shadow-2xl">
+          <div className="absolute inset-0 opacity-40">
+            <img src={building} alt="" className="w-full h-full object-cover" />
+            <div className="absolute inset-0 bg-gradient-to-r from-slate-900 via-slate-900/80 to-transparent"></div>
           </div>
-
-          {/* Right Sidebar */}
-          <div className="space-y-6">
-            {/* Dormmates */}
-            <div className="bg-white rounded-xl p-6 shadow-sm border border-slate-200">
-              <div className="flex items-center justify-between mb-4">
+          
+          <div className="relative z-10 grid grid-cols-1 md:grid-cols-2 gap-12 items-center w-full">
+            <div className="space-y-6">
+              <div className="inline-flex items-center gap-2 px-4 py-1.5 bg-blue-500/20 backdrop-blur-md border border-white/10 rounded-full">
+                <FaCheckCircle className="text-emerald-400 w-3 h-3" />
+                <span className="text-[10px] font-black text-white uppercase tracking-[0.2em]">Verified Residency</span>
+              </div>
+              <div>
+                <h1 className="text-6xl sm:text-8xl font-black text-white tracking-tighter mb-2">
+                  {userData.room}
+                </h1>
+                <p className="text-xl text-blue-200 font-bold tracking-tight">{userData.floor}</p>
+              </div>
+              <div className="flex items-center gap-6 pt-4">
                 <div className="flex items-center gap-2">
-                  <FaVenus className="w-4 h-4 text-pink-600" />
-                  <h2 className="text-xl font-bold text-slate-900">Dormmates</h2>
+                  <FaBuilding className="text-white/40 w-5 h-5" />
+                  <span className="text-white font-bold">{userData.block}</span>
                 </div>
-                <span className="text-sm text-slate-500">{roommates.filter(m => m.hasProfile).length}/{roommates.length + 1}</span>
+                <div className="flex items-center gap-2">
+                  <FaMapMarkerAlt className="text-white/40 w-5 h-5" />
+                  <span className="text-white font-bold">{userData.campus}</span>
+                </div>
               </div>
-
-              <div className="space-y-4 mb-4">
-                {displayedDormmates.map((mate) => (
-                  <div key={mate.id} className="flex items-center gap-3 p-3 rounded-lg hover:bg-slate-50 transition-colors">
-                    {mate.hasProfile ? (
-                      <>
-                        <div className="w-12 h-12 rounded-full bg-pink-100 flex items-center justify-center flex-shrink-0">
-                          <FaUser className="w-6 h-6 text-pink-600" />
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <div className="flex items-center gap-2">
-                            <p className="font-semibold text-slate-800 truncate">{mate.name}</p>
-                            <button className="text-blue-600 hover:text-blue-700 flex-shrink-0">
-                              <FaEnvelope className="w-4 h-4" />
-                            </button>
-                          </div>
-                          <p className="text-sm text-slate-600 truncate">{mate.major} • {mate.year}</p>
-                          <p className="text-xs text-slate-500">Slot: {mate.slot}</p>
-                        </div>
-                      </>
-                    ) : (
-                      <>
-                        <div className="w-12 h-12 rounded-full bg-slate-200 flex items-center justify-center flex-shrink-0">
-                          <FaUser className="w-6 h-6 text-slate-400" />
-                        </div>
-                        <div className="flex-1">
-                          <p className="text-sm text-slate-500">Slot {mate.slot} is currently empty</p>
-                        </div>
-                      </>
-                    )}
+            </div>
+            
+            <div className="hidden md:flex justify-end">
+              <div className="glass-effect rounded-3xl p-8 border border-white/10 backdrop-blur-3xl w-full max-w-sm">
+                <p className="text-[10px] font-black text-white/40 uppercase tracking-widest mb-6">Occupancy Map</p>
+                <div className="space-y-4">
+                  <div className="flex items-center justify-between">
+                    <span className="text-white/60 text-sm font-bold">Total Capacity</span>
+                    <span className="text-white font-black">4 Slots</span>
                   </div>
-                ))}
-              </div>
-
-              {/* View More Button */}
-              {roommates.length > 4 && (
-                <button
-                  onClick={() => setShowMoreDormmates(!showMoreDormmates)}
-                  className="w-full text-center py-2 text-blue-600 hover:text-blue-700 font-medium"
-                >
-                  {showMoreDormmates ? 'Show Less' : `View All ${roommates.length + 1} Roommates`}
-                </button>
-              )}
-            </div>
-
-            {/* Assigned Proctor */}
-            <div className="bg-white rounded-xl p-6 shadow-sm border border-slate-200">
-              <div className="flex items-center gap-2 mb-4">
-                <div className="w-8 h-8 bg-blue-100 rounded-lg flex items-center justify-center">
-                  <FaCheckCircle className="w-4 h-4 text-blue-600" />
+                  <div className="w-full h-3 bg-white/10 rounded-full overflow-hidden">
+                    <div className="h-full bg-premium-gradient w-[75%] rounded-full shadow-[0_0_15px_rgba(37,99,235,0.5)]"></div>
+                  </div>
+                  <div className="flex justify-between text-[10px] font-black uppercase tracking-tighter text-blue-300">
+                    <span>3 Residents</span>
+                    <span>1 Vacant</span>
+                  </div>
                 </div>
-                <h2 className="text-xl font-bold text-slate-900">Assigned Proctor</h2>
-              </div>
-
-              <div className="text-center mb-4">
-                <div className="w-20 h-20 rounded-full bg-slate-200 mx-auto mb-3 flex items-center justify-center">
-                  <FaUser className="w-10 h-10 text-slate-400" />
-                </div>
-                <p className="font-semibold text-slate-800">{proctor?.name || 'No Proctor Assigned'}</p>
-                <p className="text-sm text-slate-600">{proctor?.role || 'N/A'} {proctor?.email && `• ${proctor.email}`}</p>
-              </div>
-
-              <button className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium transition-colors">
-                <FaEnvelope className="w-4 h-4" />
-                Send Message
-              </button>
-            </div>
-
-            {/* Information Note */}
-            <div className="bg-blue-50 border border-blue-200 rounded-xl p-4">
-              <div className="flex items-start gap-3">
-                <FaLightbulb className="w-5 h-5 text-blue-600 flex-shrink-0 mt-0.5" />
-                <p className="text-sm text-blue-800">
-                  If something in your room is broken, report it directly to facilities.
-                </p>
               </div>
             </div>
           </div>
+        </section>
+
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-10">
+          {/* Main Content: Roommates & Tasks */}
+          <div className="lg:col-span-8 space-y-10">
+            {/* Roommates Grid */}
+            <section className="space-y-6">
+              <div className="flex items-center justify-between">
+                <h3 className="text-2xl font-black text-slate-900 tracking-tight">Roommate Collective</h3>
+                <span className="text-xs font-bold text-slate-400 bg-slate-100 px-3 py-1 rounded-full">{roommates.length + 1} Members</span>
+              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                {roommates.map((mate, idx) => (
+                  <div key={idx} className="glass-effect rounded-3xl p-6 border border-slate-100 hover:shadow-xl hover-lift transition-all group">
+                    <div className="flex items-center gap-4">
+                      <div className="w-16 h-16 rounded-2xl bg-premium-gradient flex items-center justify-center text-white font-black text-xl shadow-lg shadow-blue-500/20 group-hover:scale-105 transition-transform">
+                        {mate.hasProfile ? mate.name.charAt(0) : <FaUser className="w-6 h-6 opacity-40" />}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center justify-between mb-0.5">
+                          <h4 className="text-base font-black text-slate-900 truncate">{mate.name || "Vacant Slot"}</h4>
+                          {mate.hasProfile && <FaCheckCircle className="text-emerald-500 w-3 h-3" />}
+                        </div>
+                        <p className="text-xs text-slate-500 font-bold truncate">{mate.major || "Educational Track"} • {mate.year || "Year"}</p>
+                        <div className="mt-3 flex items-center gap-2">
+                           <span className="text-[9px] font-black uppercase px-2 py-0.5 bg-slate-100 rounded-md text-slate-500">Slot {mate.slot}</span>
+                           {mate.hasProfile && (
+                             <button className="p-1.5 rounded-lg hover:bg-blue-50 text-blue-600 transition-colors">
+                               <FaEnvelope className="w-3 h-3" />
+                             </button>
+                           )}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </section>
+
+            {/* Tasks & Sanitation */}
+            <section className="glass-effect rounded-[2.5rem] p-8 border border-white shadow-xl shadow-slate-200/40">
+              <div className="flex items-center justify-between mb-8">
+                <div className="flex items-center gap-4">
+                  <div className="w-12 h-12 bg-blue-100 rounded-2xl flex items-center justify-center text-blue-600">
+                    <FaLightbulb className="w-6 h-6" />
+                  </div>
+                  <div>
+                    <h3 className="text-xl font-black text-slate-900">Task Protocol</h3>
+                    <p className="text-xs font-bold text-slate-400">Collaboration for Room {userData.room}</p>
+                  </div>
+                </div>
+                <button onClick={() => setShowTaskForm(!showTaskForm)} className="w-10 h-10 bg-slate-900 text-white rounded-xl flex items-center justify-center hover:scale-110 active:scale-95 transition-all">
+                  <FaPlus className="w-4 h-4" />
+                </button>
+              </div>
+
+              <div className="space-y-4">
+                {tasks.map((task) => (
+                  <div key={task.id} className={`flex items-center gap-4 p-5 rounded-3xl border transition-all ${task.completed ? 'bg-slate-50/50 border-slate-100 grayscale opacity-60' : 'bg-white border-slate-100 shadow-sm hover:shadow-md'}`}>
+                    <button 
+                      onClick={() => handleTaskToggle(task.id)}
+                      className={`w-8 h-8 rounded-xl flex items-center justify-center transition-all ${task.completed ? 'bg-emerald-500 text-white' : 'bg-slate-100 text-transparent border-2 border-slate-200 hover:border-blue-400'}`}
+                    >
+                      <FaCheck className="w-4 h-4" />
+                    </button>
+                    <div className="flex-1">
+                      <div className="flex items-center gap-2 mb-1">
+                         <span className="text-[9px] font-black uppercase text-blue-600 bg-blue-50 px-2 py-0.5 rounded-md">{task.category}</span>
+                         <span className="text-[10px] font-bold text-slate-400">Due {task.dueDate}</span>
+                      </div>
+                      <h4 className={`text-sm font-black ${task.completed ? 'text-slate-400 line-through' : 'text-slate-800'}`}>{task.title}</h4>
+                    </div>
+                    <div className="text-right">
+                       <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Assigned</p>
+                       <div className="flex items-center gap-2 justify-end">
+                         <span className="text-xs font-bold text-slate-700">{task.assignedTo}</span>
+                         <div className="w-6 h-6 rounded-full bg-slate-100 flex items-center justify-center text-[10px] font-black">
+                           {task.assignedTo.charAt(0)}
+                         </div>
+                       </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </section>
+          </div>
+
+          {/* Sidebar Content */}
+          <div className="lg:col-span-4 space-y-10">
+            {/* Proctor Profile */}
+            <section className="glass-effect rounded-[2.5rem] p-8 border border-white shadow-2xl shadow-blue-500/5 relative overflow-hidden group">
+              <div className="absolute top-0 right-0 w-32 h-32 bg-blue-600/5 rounded-full -mr-16 -mt-16 group-hover:scale-150 transition-transform duration-700"></div>
+              <div className="relative z-10 text-center space-y-6">
+                <div className="inline-flex items-center gap-2 px-3 py-1 bg-slate-900 rounded-full text-white text-[9px] font-black uppercase tracking-widest">
+                  Authority Figure
+                </div>
+                <div className="relative inline-block">
+                  <div className="w-32 h-32 rounded-[2.5rem] bg-slate-100 mx-auto border-4 border-white shadow-xl overflow-hidden flex items-center justify-center">
+                    <FaUser className="w-12 h-12 text-slate-300" />
+                  </div>
+                  <div className="absolute -bottom-2 -right-2 w-10 h-10 bg-emerald-500 rounded-2xl border-4 border-white flex items-center justify-center text-white shadow-lg">
+                    <FaCheckCircle className="w-4 h-4" />
+                  </div>
+                </div>
+                <div>
+                  <h3 className="text-xl font-black text-slate-900">{proctor?.name || "No Supervisor"}</h3>
+                  <p className="text-xs font-bold text-slate-400 uppercase tracking-widest mt-1">Campus Proctor</p>
+                </div>
+                <div className="p-4 bg-slate-50 rounded-2xl border border-slate-100 text-left space-y-2">
+                  <div className="flex justify-between text-[10px] font-black">
+                    <span className="text-slate-400 uppercase">Verification</span>
+                    <span className="text-emerald-600">CERTIFIED</span>
+                  </div>
+                  <div className="flex justify-between text-[10px] font-black">
+                    <span className="text-slate-400 uppercase">Availability</span>
+                    <span className="text-slate-800">8AM - 6PM</span>
+                  </div>
+                </div>
+                <button className="w-full py-4 bg-premium-gradient text-white rounded-2xl font-black text-sm shadow-lg shadow-blue-500/30 hover:shadow-xl transition-all flex items-center justify-center gap-3">
+                  <FaEnvelope className="w-4 h-4" />
+                  Direct Message
+                </button>
+              </div>
+            </section>
+
+            {/* Quick Support Link */}
+            <section className="bg-slate-900 rounded-[2.5rem] p-8 text-white relative overflow-hidden group">
+               <div className="absolute inset-0 bg-premium-gradient opacity-0 group-hover:opacity-100 transition-opacity duration-700"></div>
+               <div className="relative z-10">
+                 <h3 className="text-lg font-black mb-2 flex items-center gap-3">
+                   <FaWrench className="w-5 h-5 text-blue-400" />
+                   Infrastructure Report
+                 </h3>
+                 <p className="text-xs text-white/60 font-medium leading-relaxed mb-6">
+                   Something malfunctioning in your unit? Report it immediately to the facilities team.
+                 </p>
+                 <Link to="/maintenance" className="inline-flex items-center gap-2 text-sm font-black text-blue-400 hover:text-white transition-colors">
+                   Open Maintenance Ticket <FaArrowRight className="w-3 h-3" />
+                 </Link>
+               </div>
+            </section>
+          </div>
         </div>
-      )}
+      </div>
     </DashboardLayout>
   );
 }
