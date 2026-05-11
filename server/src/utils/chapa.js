@@ -3,18 +3,28 @@ const axios = require('axios');
 
 function buildPlacementReturnUrl() {
   const isProduction = process.env.NODE_ENV === 'production' || !!process.env.VERCEL;
+  const prodUrl = 'https://aauonlinedormmanegement.vercel.app';
   const explicit = (process.env.CHAPA_RETURN_URL || '').trim();
   
-  // If we are in production but the explicit URL is localhost, ignore it and use the Vercel fallback
-  if (isProduction && explicit.includes('localhost')) {
-    const frontend = 'https://aauonlinedormmanegement.vercel.app';
-    return `${frontend}/placement-request?payment=success`;
+  // CRITICAL: If we are in production, we MUST use the production domain.
+  // This prevents redirects to localhost which browsers block as "Unsafe".
+  if (isProduction) {
+    // If explicit is set and is NOT localhost, we can use it, otherwise force prodUrl
+    if (explicit && !explicit.includes('localhost') && explicit.startsWith('https')) {
+      return explicit;
+    }
+    return `${prodUrl}/placement-request?payment=success`;
   }
 
+  // If not production, use explicit or fallback to FRONTEND_URL
   if (explicit) return explicit;
 
-  const frontend = (process.env.FRONTEND_URL || 'https://aauonlinedormmanegement.vercel.app').trim().replace(/\/+$/, '');
-  return `${frontend}/placement-request?payment=success`;
+  const frontend = (process.env.FRONTEND_URL || prodUrl).trim().replace(/\/+$/, '');
+  
+  // Ensure the URL has a protocol
+  const finalFrontend = frontend.startsWith('http') ? frontend : `https://${frontend}`;
+  
+  return `${finalFrontend}/placement-request?payment=success`;
 }
 
 function buildCallbackUrl() {
@@ -57,4 +67,8 @@ const initializeChapaPayment = async (student, amount = 3000) => {
   };
 };
 
-module.exports = { initializeChapaPayment };
+module.exports = { 
+  initializeChapaPayment,
+  buildPlacementReturnUrl 
+};
+

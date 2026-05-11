@@ -6,32 +6,17 @@ const Student = require('../models/Student');
 const Transaction = require('../models/Transaction');
 const Notification = require('../models/Notification');
 const { assignStudentToRoom } = require('./dormController');
-
-function isSelfSponsoredStudent(studentLike) {
-  const raw = String(studentLike?.sponsorship || studentLike?.studentType || '').trim().toLowerCase();
-  return raw.includes('self');
-}
+const { buildPlacementReturnUrl } = require('../utils/chapa');
 
 // Clean trimmed keys
 const CHAPA_SECRET_KEY = (process.env.CHAPA_SECRET_KEY || '').trim();
 const CHAPA_CALLBACK_URL = (process.env.CHAPA_CALLBACK_URL || '').trim();
 const ADDIS_WAIT_MS = 3 * 60 * 1000;
 
-function buildPlacementReturnUrl() {
-  const explicit = (process.env.CHAPA_RETURN_URL || '').trim();
-  if (explicit) return explicit;
-
-  // IMPORTANT: Chapa's servers redirect the student's browser AFTER payment.
-  // The return_url must ALWAYS be a publicly accessible URL (never localhost or 5173).
-  const prodUrl = 'https://aauonlinedormmanegement.vercel.app';
-  const envFrontend = (process.env.FRONTEND_URL || '').trim().replace(/\/+$/, '');
-  
-  let frontend = envFrontend || prodUrl;
-  // Removed strict check so localhost development works properly.
-  
-  return `${frontend}/placement-request?payment=success`;
+function isSelfSponsoredStudent(studentLike) {
+  const raw = String(studentLike?.sponsorship || studentLike?.studentType || '').trim().toLowerCase();
+  return raw.includes('self');
 }
-
 const logToFile = (msg) => {
   if (!process.env.VERCEL) {
     try {
