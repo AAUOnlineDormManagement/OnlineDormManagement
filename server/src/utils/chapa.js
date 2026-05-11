@@ -2,13 +2,17 @@
 const axios = require('axios');
 
 function buildPlacementReturnUrl() {
+  const isProduction = process.env.NODE_ENV === 'production' || !!process.env.VERCEL;
   const explicit = (process.env.CHAPA_RETURN_URL || '').trim();
+  
+  // If we are in production but the explicit URL is localhost, ignore it and use the Vercel fallback
+  if (isProduction && explicit.includes('localhost')) {
+    const frontend = 'https://aauonlinedormmanegement.vercel.app';
+    return `${frontend}/placement-request?payment=success`;
+  }
+
   if (explicit) return explicit;
 
-  // IMPORTANT: Chapa's servers redirect the student's browser AFTER payment.
-  // The return_url must ALWAYS be a publicly accessible URL (never localhost).
-  // localhost:5173 is only reachable from the student's own machine, not from Chapa's servers,
-  // which causes Chrome's "Unsafe attempt to load URL" cross-origin error.
   const frontend = (process.env.FRONTEND_URL || 'https://aauonlinedormmanegement.vercel.app').trim().replace(/\/+$/, '');
   return `${frontend}/placement-request?payment=success`;
 }
