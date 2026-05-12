@@ -19,21 +19,24 @@ import authApi from '../api/authApi';
 import toast from 'react-hot-toast';
 
 export default function ApplicationControl() {
+  const user = authApi.getCurrentUser();
+  const isAdmin = user?.role === 'SuperAdmin' || user?.role === 'CampusAdmin';
+  const isCampusAdmin = user?.role === 'CampusAdmin';
+
   const [settings, setSettings] = useState([]);
   const [loading, setLoading] = useState(true);
   const [isAdding, setIsAdding] = useState(false);
   const [newSetting, setNewSetting] = useState({
-    campus: 'Any',
+    campus: isCampusAdmin ? user.campus : 'Any',
     locationCategory: 'all',
     sponsorshipType: 'Both',
     isOpen: true,
     waitMinutes: 3
   });
 
-  const user = authApi.getCurrentUser();
-  const isAdmin = user?.role === 'SuperAdmin' || user?.role === 'CampusAdmin';
+  const campuses = isCampusAdmin ? [user.campus] : ['Any', '5 kilo', '4 kilo', '6 kilo', 'FBE', 'Lideta', 'AAC', 'CHMS'];
 
-  const campuses = ['Any', '5 kilo', '4 kilo', '6 kilo', 'FBE', 'Lideta', 'AAC', 'CHMS'];
+
   const locations = [
     { value: 'all', label: 'All Locations' },
     { value: 'addis', label: 'Addis Ababa' },

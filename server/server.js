@@ -221,6 +221,8 @@ app.use('/api/payment', require('./src/routes/paymentRoutes'));
 app.use('/api/users', require('./src/routes/userRoutes'));
 app.use('/api/operational-reports', require('./src/routes/reportRoutes'));
 app.use('/api/role-applications', require('./src/routes/roleApplicationRoutes'));
+app.use('/api/application-control', require('./src/routes/applicationControlRoutes'));
+
 
 // Welcome route
 app.get('/api', (req, res) => {
