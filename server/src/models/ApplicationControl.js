@@ -24,6 +24,12 @@ const applicationControlSchema = new mongoose.Schema(
       type: Boolean, 
       default: true 
     },
+    openedAt: {
+      type: Date
+    },
+    closedAt: {
+      type: Date
+    },
     waitMinutes: { 
       type: Number, 
       default: 3, 

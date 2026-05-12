@@ -496,12 +496,31 @@ const submitApplication = async (req, res) => {
       $or: [{ sponsorshipType: sponsorship }, { sponsorshipType: 'Both' }]
     }).sort({ campus: 1, locationCategory: 1, sponsorshipType: 1 });
 
-    if (granularSetting && !granularSetting.isOpen) {
-      return res.status(403).json({
-        success: false,
-        message: `Dorm applications are currently closed for ${cityCategory.toUpperCase()} - ${sponsorship.toUpperCase()} students on ${studentCampus} campus.`
-      });
+    if (granularSetting) {
+      const now = new Date();
+      let isWindowActive = granularSetting.isOpen;
+
+      // Check date constraints if set
+      if (granularSetting.openedAt && now < new Date(granularSetting.openedAt)) {
+        isWindowActive = false;
+      }
+      if (granularSetting.closedAt && now > new Date(granularSetting.closedAt)) {
+        isWindowActive = false;
+      }
+
+      if (!isWindowActive) {
+        let dateMsg = '';
+        if (granularSetting.openedAt && now < new Date(granularSetting.openedAt)) {
+          dateMsg = ` (Opens on ${new Date(granularSetting.openedAt).toLocaleString()})`;
+        }
+
+        return res.status(403).json({
+          success: false,
+          message: `Dorm applications are currently closed for ${cityCategory.toUpperCase()} - ${sponsorship.toUpperCase()} students on ${studentCampus} campus.${dateMsg}`
+        });
+      }
     }
+
 
     let verificationNote = `Automatically detected city: ${finalCity}`;
     const originVerified = true;

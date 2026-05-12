@@ -31,8 +31,11 @@ export default function ApplicationControl() {
     locationCategory: 'all',
     sponsorshipType: 'Both',
     isOpen: true,
-    waitMinutes: 3
+    waitMinutes: 3,
+    openedAt: '',
+    closedAt: ''
   });
+
 
   const campuses = isCampusAdmin ? [user.campus] : ['Any', '5 kilo', '4 kilo', '6 kilo', 'FBE', 'Lideta', 'AAC', 'CHMS'];
 
@@ -102,6 +105,18 @@ export default function ApplicationControl() {
       }
     } catch (err) {
       toast.error('Failed to update wait time');
+    }
+  };
+
+  const handleDateChange = async (id, field, value) => {
+    try {
+      const res = await applicationControlApi.updateSetting(id, { [field]: value });
+      if (res.success) {
+        toast.success('Schedule updated');
+        fetchSettings();
+      }
+    } catch (err) {
+      toast.error('Failed to update schedule');
     }
   };
 
@@ -236,19 +251,42 @@ export default function ApplicationControl() {
                   </select>
                 </div>
 
-                <div>
-                  <label className="block text-xs font-black text-slate-400 uppercase mb-1.5 ml-1">Wait Time (Minutes)</label>
-                  <div className="relative">
-                    <FaClock className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-300" />
+                  <div>
+                    <label className="block text-xs font-black text-slate-400 uppercase mb-1.5 ml-1">Wait Time (Minutes)</label>
+                    <div className="relative">
+                      <FaClock className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-300" />
+                      <input 
+                        type="number"
+                        min="0"
+                        className="w-full bg-slate-50 border-2 border-slate-100 rounded-xl pl-12 pr-4 py-3 text-sm font-semibold text-slate-700 focus:border-indigo-500 transition-all outline-none"
+                        value={newSetting.waitMinutes}
+                        onChange={(e) => setNewSetting({...newSetting, waitMinutes: e.target.value})}
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-xs font-black text-slate-400 uppercase mb-1.5 ml-1">Open At</label>
                     <input 
-                      type="number"
-                      min="0"
-                      className="w-full bg-slate-50 border-2 border-slate-100 rounded-xl pl-12 pr-4 py-3 text-sm font-semibold text-slate-700 focus:border-indigo-500 transition-all outline-none"
-                      value={newSetting.waitMinutes}
-                      onChange={(e) => setNewSetting({...newSetting, waitMinutes: e.target.value})}
+                      type="datetime-local"
+                      className="w-full bg-slate-50 border-2 border-slate-100 rounded-xl px-4 py-3 text-sm font-semibold text-slate-700 focus:border-indigo-500 transition-all outline-none"
+                      value={newSetting.openedAt}
+                      onChange={(e) => setNewSetting({...newSetting, openedAt: e.target.value})}
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-black text-slate-400 uppercase mb-1.5 ml-1">Close At</label>
+                    <input 
+                      type="datetime-local"
+                      className="w-full bg-slate-50 border-2 border-slate-100 rounded-xl px-4 py-3 text-sm font-semibold text-slate-700 focus:border-indigo-500 transition-all outline-none"
+                      value={newSetting.closedAt}
+                      onChange={(e) => setNewSetting({...newSetting, closedAt: e.target.value})}
                     />
                   </div>
                 </div>
+
 
                 <div className="pt-4 flex gap-3">
                   <button type="button" onClick={() => setIsAdding(false)} className="flex-1 px-6 py-3 border-2 border-slate-100 text-slate-500 rounded-xl font-bold hover:bg-slate-50 transition-all">
@@ -271,6 +309,7 @@ export default function ApplicationControl() {
                 <tr className="bg-slate-50/80 border-b border-slate-200">
                   <th className="px-6 py-5 text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">Condition</th>
                   <th className="px-6 py-5 text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">Status</th>
+                  <th className="px-6 py-5 text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">Schedule</th>
                   <th className="px-6 py-5 text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">Wait Time</th>
                   <th className="px-6 py-5 text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">Actions</th>
                 </tr>
@@ -328,6 +367,29 @@ export default function ApplicationControl() {
                           {setting.isOpen ? <><FaUnlock /> Open</> : <><FaLock /> Closed</>}
                         </button>
                       </td>
+                      <td className="px-6 py-6">
+                        <div className="space-y-2">
+                          <div className="flex flex-col gap-1">
+                            <span className="text-[9px] font-black text-slate-400 uppercase">Starts</span>
+                            <input 
+                              type="datetime-local"
+                              className="bg-slate-50 border border-slate-100 rounded px-2 py-1 text-[10px] font-bold text-slate-700 outline-none focus:border-indigo-500"
+                              defaultValue={setting.openedAt ? new Date(setting.openedAt).toISOString().slice(0, 16) : ''}
+                              onBlur={(e) => handleDateChange(setting._id, 'openedAt', e.target.value)}
+                            />
+                          </div>
+                          <div className="flex flex-col gap-1">
+                            <span className="text-[9px] font-black text-slate-400 uppercase">Ends</span>
+                            <input 
+                              type="datetime-local"
+                              className="bg-slate-50 border border-slate-100 rounded px-2 py-1 text-[10px] font-bold text-slate-700 outline-none focus:border-indigo-500"
+                              defaultValue={setting.closedAt ? new Date(setting.closedAt).toISOString().slice(0, 16) : ''}
+                              onBlur={(e) => handleDateChange(setting._id, 'closedAt', e.target.value)}
+                            />
+                          </div>
+                        </div>
+                      </td>
+
                       <td className="px-6 py-6">
                         <div className="flex items-center gap-3">
                           <input 

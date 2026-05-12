@@ -22,11 +22,12 @@ async function seedFreshman() {
       if (!user) {
         user = await User.create({
           name: 'Nunuyat Getamesy',
-          userID: 'FRESHTEST01',
+          userID: 'UGR/1111/15',
           email: 'nunuyat@example.com',
-          password: 'password123',
+          password: '1234',
           role: 'Student'
         });
+
 
         console.log('User created:', user.userID);
       }
