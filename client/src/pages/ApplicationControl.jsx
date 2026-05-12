@@ -264,9 +264,9 @@ export default function ApplicationControl() {
                       />
                     </div>
                   </div>
-                </div>
 
                 <div className="grid grid-cols-2 gap-4">
+
                   <div>
                     <label className="block text-xs font-black text-slate-400 uppercase mb-1.5 ml-1">Open At</label>
                     <input 
@@ -374,7 +374,7 @@ export default function ApplicationControl() {
                             <input 
                               type="datetime-local"
                               className="bg-slate-50 border border-slate-100 rounded px-2 py-1 text-[10px] font-bold text-slate-700 outline-none focus:border-indigo-500"
-                              defaultValue={setting.openedAt ? new Date(setting.openedAt).toISOString().slice(0, 16) : ''}
+                              defaultValue={setting.openedAt && !isNaN(new Date(setting.openedAt)) ? new Date(setting.openedAt).toISOString().slice(0, 16) : ''}
                               onBlur={(e) => handleDateChange(setting._id, 'openedAt', e.target.value)}
                             />
                           </div>
@@ -383,7 +383,7 @@ export default function ApplicationControl() {
                             <input 
                               type="datetime-local"
                               className="bg-slate-50 border border-slate-100 rounded px-2 py-1 text-[10px] font-bold text-slate-700 outline-none focus:border-indigo-500"
-                              defaultValue={setting.closedAt ? new Date(setting.closedAt).toISOString().slice(0, 16) : ''}
+                              defaultValue={setting.closedAt && !isNaN(new Date(setting.closedAt)) ? new Date(setting.closedAt).toISOString().slice(0, 16) : ''}
                               onBlur={(e) => handleDateChange(setting._id, 'closedAt', e.target.value)}
                             />
                           </div>
