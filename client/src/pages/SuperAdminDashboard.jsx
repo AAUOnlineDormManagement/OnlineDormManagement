@@ -35,8 +35,10 @@ const quickActions = [
   { title: 'Building Logistics', icon: FaUniversity, link: '/super-admin/buildings', color: 'from-orange-500 to-orange-600', bg: 'bg-orange-50 dark:bg-orange-900/20' },
   { title: 'Global Inventory', icon: FaFileInvoice, link: '/super-admin/reports', color: 'from-red-500 to-red-600', bg: 'bg-red-50 dark:bg-red-900/20' },
   { title: 'Security Protocols', icon: FaShieldAlt, link: '/super-admin-dashboard', color: 'from-slate-600 to-slate-700', bg: 'bg-slate-100 dark:bg-slate-800' },
-  { title: 'Role Access', icon: FaShieldAlt, link: '/super-admin/access-requests', color: 'from-orange-500 to-orange-600', bg: 'bg-orange-50 dark:bg-orange-900/20' }
+  { title: 'Role Access', icon: FaShieldAlt, link: '/super-admin/access-requests', color: 'from-orange-500 to-orange-600', bg: 'bg-orange-50 dark:bg-orange-900/20' },
+  { title: 'Window Control', icon: FaClock, link: '/super-admin/application-control', color: 'from-rose-500 to-rose-600', bg: 'bg-rose-50 dark:bg-rose-900/20' }
 ];
+
 
 export default function SuperAdminDashboard() {
   const [loading, setLoading] = useState(true);

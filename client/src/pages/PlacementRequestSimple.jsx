@@ -142,6 +142,8 @@ export default function PlacementRequestSimple() {
   const [paymentReceipt, setPaymentReceipt] = useState(null);
   const [isStaffRelated, setIsStaffRelated] = useState(false);
   const [isSpecialNeed, setIsSpecialNeed] = useState(false);
+  const [isFreshman, setIsFreshman] = useState(false);
+
   const [submitting, setSubmitting] = useState(false);
   const [previews, setPreviews] = useState({
     fydaFront: null,
@@ -177,11 +179,17 @@ export default function PlacementRequestSimple() {
 
     const effectiveIsStaffRelated = !!isStaffRelated || !!s.isStaffRelated || studentType.includes('staff');
     const effectiveIsSpecialNeed = !!isSpecialNeed || !!s.isSpecialNeed || studentType.includes('special');
+    const effectiveIsFreshman = !!isFreshman || !!s.isFreshman || studentType.includes('freshman') || (s.department === 'Undecided');
     const isSelfSponsored = sponsorship.includes('self') || studentType.includes('self');
 
-    if (isSelfSponsored) {
-      return { label: 'Self Sponsored', isSelfSponsored: true, isSpecialNeed: effectiveIsSpecialNeed, isStaffRelated: effectiveIsStaffRelated };
+    if (effectiveIsFreshman) {
+      return { label: 'Freshman (Undecided)', isFreshman: true, isSelfSponsored, isSpecialNeed: effectiveIsSpecialNeed, isStaffRelated: effectiveIsStaffRelated };
     }
+
+    if (isSelfSponsored) {
+      return { label: 'Self Sponsored', isFreshman: false, isSelfSponsored: true, isSpecialNeed: effectiveIsSpecialNeed, isStaffRelated: effectiveIsStaffRelated };
+    }
+
     if (effectiveIsSpecialNeed) {
       return { label: 'Special Needs', isSelfSponsored: false, isSpecialNeed: effectiveIsSpecialNeed, isStaffRelated: effectiveIsStaffRelated };
     }
@@ -204,6 +212,7 @@ export default function PlacementRequestSimple() {
       saveDraft({ isStaffRelated, isSpecialNeed, notes: existingApp?.notes }, {
         fydaFront, fydaBack, addisLetter, paymentReceipt
       });
+
     }
   }, [isStaffRelated, isSpecialNeed, fydaFront, fydaBack, addisLetter, paymentReceipt, draftLoaded]);
 
@@ -251,7 +260,9 @@ export default function PlacementRequestSimple() {
           if (res.student && !draft.isStaffRelated && !draft.isSpecialNeed) {
             setIsStaffRelated(!!res.student.isStaffRelated);
             setIsSpecialNeed(!!res.student.isSpecialNeed);
+            setIsFreshman(!!res.student.isFreshman);
           }
+
         } else {
           throw new Error(res?.message || 'Failed to load dashboard');
         }
@@ -576,6 +587,7 @@ export default function PlacementRequestSimple() {
       const fd = new FormData();
       fd.append('isStaffRelated', isStaffRelated);
       fd.append('isSpecialNeed', isSpecialNeed);
+      fd.append('isFreshman', isFreshman);
       fd.append('fydaFront', activeFront);
       fd.append('fydaBack', activeBack);
       if (addisLetter) fd.append('addisLetter', addisLetter);
@@ -904,6 +916,8 @@ export default function PlacementRequestSimple() {
                     <span className="text-sm font-medium text-slate-700">Special Need</span>
                   </label>
                 </div>
+
+
               </div>
             </div>
           </div>

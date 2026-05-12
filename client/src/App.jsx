@@ -13,6 +13,7 @@ import ManageStudents from './pages/ManageStudents';
 import StudentDetail from './pages/StudentDetail';
 import Reports from './pages/Reports';
 import OperationalReports from './pages/OperationalReports';
+import ApplicationControl from './pages/ApplicationControl';
 import ProctorePortal from './pages/Proctor/ProctoreDashboard';
 import StudentMaintenance from './pages/Proctor/StudentMaintenance';
 import StudentComplaints from './pages/Proctor/StudentComplaints';
@@ -95,6 +96,7 @@ function App() {
           <Route path="/building-management" element={<BuildingManagement />} />
           <Route path="/operational-reports" element={<OperationalReports />} />
           <Route path="/access-requests" element={<AccessRequests />} />
+          <Route path="/application-control" element={<ApplicationControl />} />
           <Route path="/admin/profile" element={<Profile />} />
           <Route path="/admin/settings" element={<Settings />} />
         </Route>
@@ -112,6 +114,7 @@ function App() {
           <Route path="/super-admin/reports" element={<Reports />} />
           <Route path="/super-admin/operational-reports" element={<OperationalReports />} />
           <Route path="/super-admin/access-requests" element={<AccessRequests />} />
+          <Route path="/super-admin/application-control" element={<ApplicationControl />} />
           <Route path="/super-admin/profile" element={<Profile />} />
           <Route path="/super-admin/settings" element={<Settings />} />
         </Route>

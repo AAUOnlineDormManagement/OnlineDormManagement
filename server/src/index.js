@@ -215,6 +215,14 @@ try {
   console.log('✗ Operational Reports routes error:', error.message);
 }
 
+try {
+  app.use('/api/application-control', require('./routes/applicationControlRoutes'));
+  console.log('✓ Application Control routes loaded');
+} catch (error) {
+  console.log('✗ Application Control routes error:', error.message);
+}
+
+
 // Error handling middleware
 app.use((err, req, res, next) => {
   console.error('❌ Global Error Handler:', err);

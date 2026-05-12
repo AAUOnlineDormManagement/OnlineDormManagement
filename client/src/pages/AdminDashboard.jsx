@@ -38,8 +38,10 @@ const quickActions = [
   { title: 'Student Directory', icon: FaUsers, link: '/students', color: 'from-emerald-500 to-emerald-600', bg: 'bg-emerald-50' },
   { title: 'System Reports', icon: HiOutlineDocumentReport, link: '/reports', color: 'from-amber-500 to-amber-600', bg: 'bg-amber-50' },
   { title: 'Staff Management', icon: FaUserShield, link: '/staff-management', color: 'from-blue-500 to-blue-600', bg: 'bg-blue-50' },
-  { title: 'Access Requests', icon: FaShieldAlt, link: '/access-requests', color: 'from-orange-500 to-orange-600', bg: 'bg-orange-50' }
+  { title: 'Access Requests', icon: FaShieldAlt, link: '/access-requests', color: 'from-orange-500 to-orange-600', bg: 'bg-orange-50' },
+  { title: 'Window Control', icon: FaClock, link: '/application-control', color: 'from-rose-500 to-rose-600', bg: 'bg-rose-50' }
 ];
+
 
 export default function AdminDashboard() {
   const [loading, setLoading] = useState(true);

@@ -53,6 +53,7 @@ const Notification = require('../models/Notification');
 const DormApplicationWindow = require('../models/DormApplicationWindow');
 const CampusDepartmentPolicy = require('../models/CampusDepartmentPolicy');
 const DormApplicationConfig = require('../models/DormApplicationConfig');
+const ApplicationControl = require('../models/ApplicationControl');
 const ADDIS_WAIT_MS = 3 * 60 * 1000;
 const { normalizeFilePath } = require('../utils/fileNormalization');
 
@@ -87,10 +88,26 @@ function detectCityCategoryFromBackText(backText) {
   return 'other';
 }
 
-async function getEffectiveWaitMsForCityCategory(cityCategory, campus) {
+async function getEffectiveWaitMsForCityCategory(cityCategory, campus, sponsorship) {
+  // Default fallbacks if no granular control is found
   if (cityCategory !== 'addis' && cityCategory !== 'shager') return 0;
-  // USER REQUIREMENT: Fixed 3 minutes for both Addis Ababa and Shager
-  return 3 * 60 * 1000;
+  const defaultWait = 3 * 60 * 1000;
+
+  try {
+    const setting = await ApplicationControl.findOne({
+      $or: [{ campus }, { campus: 'Any' }],
+      $or: [{ locationCategory: cityCategory }, { locationCategory: 'all' }],
+      $or: [{ sponsorshipType: sponsorship }, { sponsorshipType: 'Both' }]
+    }).sort({ campus: 1, locationCategory: 1, sponsorshipType: 1 });
+
+    if (setting) {
+      return (setting.waitMinutes || 3) * 60 * 1000;
+    }
+  } catch (err) {
+    console.error('Error fetching granular wait time:', err.message);
+  }
+
+  return defaultWait;
 }
 const { getCampusForDepartment } = require('../utils/campus');
 const {
@@ -221,6 +238,24 @@ async function findRoomForStudent(student, isSpecialNeed = false) {
     console.warn(`⚠️ Gender not found for student ${student._id}. Room search may fail.`);
   }
 
+  const isFreshman = student.isFreshman || false;
+
+  // FRESHMAN SPECIAL FLOW: Bypass campus/department logic and find ANY available room
+  if (isFreshman) {
+    const freshmanQuery = {
+      gender: roomGenderFilter(gender),
+      capacity: { $gt: 0 },
+      $expr: { $lt: ["$currentOccupants", "$capacity"] }
+    };
+    if (isSpecialNeed) {
+      const firstFloors = await Floor.find({ floorNumber: 1 });
+      freshmanQuery.floor = { $in: firstFloors.map((f) => f._id) };
+    }
+    const freshmanRoom = await Room.findOne(freshmanQuery).populate('building');
+    if (freshmanRoom) return { room: freshmanRoom, isOverflow: false, campus: freshmanRoom.campus };
+    return { room: null, isOverflow: false, campus: null };
+  }
+
   const campus = getCampusForDepartment(student.department);
   let query = {
     gender: roomGenderFilter(gender),
@@ -236,6 +271,8 @@ async function findRoomForStudent(student, isSpecialNeed = false) {
 
   let room = await Room.findOne(query).populate('building');
   if (room) return { room, isOverflow: false, campus };
+
+
 
   // Admin-controlled cross-campus acceptance by department.
   const policies = await CampusDepartmentPolicy.find({
@@ -358,9 +395,8 @@ const submitApplication = async (req, res) => {
       });
     }
 
-    const { reason, isStaffRelated, isSpecialNeed } = req.body;
+    const { reason, isStaffRelated, isSpecialNeed, isFreshman } = req.body;
     const reasonStr = String(reason || 'Dorm placement request').trim();
-    // CITY INPUT REMOVED: Detection is now automated via OCR
 
     const frontFile = req.files?.fydaFront?.[0] || req.files?.nationalIdFront?.[0];
     const backFile = req.files?.fydaBack?.[0] || req.files?.nationalIdBack?.[0];
@@ -369,13 +405,22 @@ const submitApplication = async (req, res) => {
       return res.status(400).json({ success: false, message: 'Please upload both front and back images of your ID (FYDA).' });
     }
 
+
     const student = await Student.findOne({ user: req.user._id }).populate('user');
     if (!student) return res.status(404).json({ success: false, message: 'Student not found' });
 
     // Update student with checkbox values
     student.isStaffRelated = isStaffRelated === 'true' || isStaffRelated === true;
     student.isSpecialNeed = isSpecialNeed === 'true' || isSpecialNeed === true;
+    
+    // Freshman status comes from data/profile, not user input checkbox anymore
+    if (isFreshman !== undefined) {
+      student.isFreshman = isFreshman === 'true' || isFreshman === true;
+    }
+    
     await student.save();
+
+
 
     // === PARALLEL: OCR & Payment Initialization ===
     // Strict validation:
@@ -441,19 +486,37 @@ const submitApplication = async (req, res) => {
     if (cityCategory === 'shager') finalCity = 'Shager';
     if (cityCategory === 'addis') finalCity = 'Addis Ababa';
 
-    let verificationNote = `Automatically detected city: ${finalCity}`;
+    // === GRANULAR WINDOW CHECK ===
+    const studentCampus = getCampusForDepartment(student.department);
+    const sponsorship = student.sponsorship || 'Government';
+    
+    const granularSetting = await ApplicationControl.findOne({
+      $or: [{ campus: studentCampus }, { campus: 'Any' }],
+      $or: [{ locationCategory: cityCategory }, { locationCategory: 'all' }],
+      $or: [{ sponsorshipType: sponsorship }, { sponsorshipType: 'Both' }]
+    }).sort({ campus: 1, locationCategory: 1, sponsorshipType: 1 });
 
+    if (granularSetting && !granularSetting.isOpen) {
+      return res.status(403).json({
+        success: false,
+        message: `Dorm applications are currently closed for ${cityCategory.toUpperCase()} - ${sponsorship.toUpperCase()} students on ${studentCampus} campus.`
+      });
+    }
+
+    let verificationNote = `Automatically detected city: ${finalCity}`;
     const originVerified = true;
 
     const isAddis = cityCategory === 'addis' || cityCategory === 'shager';
     const isFar = impliesFarAddis(finalCity, backText);
-    const studentCampus = getCampusForDepartment(student.department);
-    const waitMs = await getEffectiveWaitMsForCityCategory(cityCategory, studentCampus);
+    
+    // Get dynamic wait time from settings
+    const waitMs = await getEffectiveWaitMsForCityCategory(cityCategory, studentCampus, sponsorship);
     const isSelfSponsored = isSelfSponsoredStudent(student);
     
     let status = 'Pending';
     let scheduledReleaseAt = null;
     let paymentStatus = isSelfSponsored ? 'Pending' : 'NotRequired';
+
 
     let foundRoom = null;
     let foundCampus = null;
@@ -467,7 +530,7 @@ const submitApplication = async (req, res) => {
       paymentStatus = 'NotRequired';
     } else {
       // Normal flow for regular students (no staff/special need flags)
-      if (isAddis) {
+      if (isAddis && !isFar && !student.isFreshman) {
         // OCR-based city policy:
         // - Addis Ababa => 5 min default
         // - Shager => 3 min default
@@ -476,8 +539,9 @@ const submitApplication = async (req, res) => {
         scheduledReleaseAt = new Date(Date.now() + waitMs);
         paymentStatus = isSelfSponsored ? 'Pending' : 'NotRequired';
       } else {
-        // Outside Addis residents get immediate room check and assignment
+        // Outside Addis residents OR Freshmen OR Outskirts residents get immediate room check and assignment
         const { room, campus } = await findRoomForStudent(student, student.isSpecialNeed);
+
         if (room) {
           foundRoom = room;
           foundCampus = campus;

@@ -4,7 +4,8 @@ const mongoose = require('mongoose');
 const studentSchema = new mongoose.Schema({
   user: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
   year: { type: Number, required: true },
-  department: { type: String, required: true },
+  department: { type: String, required: false, default: 'Undecided' },
+  isFreshman: { type: Boolean, default: false },
   sponsorship: {
     type: String,
     enum: ['Government', 'Self-Sponsored'],
