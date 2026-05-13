@@ -46,7 +46,8 @@ const seedStudents = async () => {
             'Biology', 'Chemistry', 'Physics', 'Mathematics'
         ];
 
-        const years = ['1st Year', '2nd Year', '3rd Year', '4th Year'];
+        const years = [1, 2, 3, 4];
+
         const sponsorships = ['Government', 'Self-Sponsored'];
 
         let studentCount = 0;
@@ -54,7 +55,32 @@ const seedStudents = async () => {
 
         console.log(`\n👨‍🎓 Creating ${studentsToCreate} students...\n`);
 
+        // Create Ribka Muluye first as a specific test freshman
+        const ribkaHashedPassword = await bcrypt.hash('1234', 12);
+        const ribkaUser = await User.create({
+            userID: 'UGR/1111/15',
+            name: 'Ribka Muluye',
+            email: 'ribka@example.com',
+            password: ribkaHashedPassword,
+            role: 'Student',
+            gender: 'Female',
+            campus: 'Main Campus'
+        });
+        await Student.create({
+            user: ribkaUser._id,
+            studentID: 'UGR/1111/15',
+            fullName: 'Ribka Muluye',
+            gender: 'Female',
+            year: 1,
+            department: 'Freshman',
+            sponsorship: 'Government',
+            isFreshman: true,
+            phoneNumber: '0911223344'
+        });
+        console.log('   ✅ Created Test Student: Ribka Muluye (Freshman)');
+
         for (let i = 0; i < studentsToCreate; i++) {
+
             const isMale = i % 2 === 0;
             const names = isMale ? maleNames : femaleNames;
             const name = names[i % names.length];
