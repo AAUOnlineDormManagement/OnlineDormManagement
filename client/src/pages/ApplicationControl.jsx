@@ -299,6 +299,8 @@ export default function ApplicationControl() {
                       onChange={(e) => setNewSetting({...newSetting, closedAt: e.target.value})}
                     />
                   </div>
+                </div>
+
                 <div className="flex items-center gap-2 px-1">
                   <input 
                     type="checkbox"
@@ -309,6 +311,7 @@ export default function ApplicationControl() {
                   />
                   <label htmlFor="isFreshmanRule" className="text-sm font-bold text-slate-700">Allow Freshman Assignments</label>
                 </div>
+
 
 
 
