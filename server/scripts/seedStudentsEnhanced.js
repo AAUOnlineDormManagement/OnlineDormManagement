@@ -58,7 +58,7 @@ const seedStudents = async () => {
         // Create Ribka Muluye first as a specific test freshman
         const ribkaHashedPassword = await bcrypt.hash('1234', 12);
         const ribkaUser = await User.create({
-            userID: 'UGR/1111/15',
+            userID: 'UGR/111/15',
             name: 'Ribka Muluye',
             email: 'ribka@example.com',
             password: ribkaHashedPassword,
@@ -68,7 +68,7 @@ const seedStudents = async () => {
         });
         await Student.create({
             user: ribkaUser._id,
-            studentID: 'UGR/1111/15',
+            studentID: 'UGR/111/15',
             fullName: 'Ribka Muluye',
             gender: 'Female',
             year: 1,
@@ -77,6 +77,7 @@ const seedStudents = async () => {
             isFreshman: true,
             phoneNumber: '0911223344'
         });
+
         console.log('   ✅ Created Test Student: Ribka Muluye (Freshman)');
 
         for (let i = 0; i < studentsToCreate; i++) {
