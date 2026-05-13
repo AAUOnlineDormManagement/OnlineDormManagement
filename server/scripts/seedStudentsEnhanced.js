@@ -80,6 +80,30 @@ const seedStudents = async () => {
 
         console.log('   ✅ Created Test Student: Ribka Muluye (Freshman)');
 
+        // Create Belaynesh Getachew as another specific test student
+        const belayneshHashedPassword = await bcrypt.hash('1234', 12);
+        const belayneshUser = await User.create({
+            userID: 'UGR/0001/15',
+            name: 'Belaynesh Getachew',
+            email: 'belaynesh@example.com',
+            password: belayneshHashedPassword,
+            role: 'Student',
+            gender: 'Female',
+            campus: 'Main Campus'
+        });
+        await Student.create({
+            user: belayneshUser._id,
+            studentID: 'UGR/0001/15',
+            fullName: 'Belaynesh Getachew',
+            gender: 'Female',
+            year: 5,
+            department: 'Computer Science',
+            sponsorship: 'Government',
+            isFreshman: false,
+            phoneNumber: '0911000001'
+        });
+        console.log('   ✅ Created Test Student: Belaynesh Getachew (UGR/0001/15)');
+
         for (let i = 0; i < studentsToCreate; i++) {
 
             const isMale = i % 2 === 0;
