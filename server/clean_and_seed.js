@@ -49,8 +49,9 @@ async function cleanAndSeed() {
     if (ribkaStudent) {
       ribkaStudent.fullName = 'Ribka Muluye';
       ribkaStudent.isFreshman = true;
-      ribkaStudent.department = 'Undecided';
+      ribkaStudent.department = 'Freshman';
       ribkaStudent.gender = 'Female';
+      ribkaStudent.sponsorship = 'Government';
       await ribkaStudent.save();
     } else {
       ribkaStudent = await Student.create({
@@ -58,7 +59,7 @@ async function cleanAndSeed() {
         fullName: 'Ribka Muluye',
         studentID: 'UGR/1111/15',
         year: 1,
-        department: 'Undecided',
+        department: 'Freshman',
         isFreshman: true,
         gender: 'Female',
         sponsorship: 'Government',
@@ -66,6 +67,7 @@ async function cleanAndSeed() {
         phoneNumber: '0911223344'
       });
     }
+
 
     console.log('Seed Success: Ribka Muluye is now a freshman in the system');
     mongoose.connection.close();

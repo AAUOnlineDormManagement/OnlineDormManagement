@@ -20,7 +20,12 @@ const applicationControlSchema = new mongoose.Schema(
       required: true,
       default: 'Both'
     },
+    isFreshmanRule: {
+      type: Boolean,
+      default: false
+    },
     isOpen: { 
+
       type: Boolean, 
       default: true 
     },

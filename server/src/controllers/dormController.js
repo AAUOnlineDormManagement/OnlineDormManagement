@@ -242,11 +242,29 @@ async function findRoomForStudent(student, isSpecialNeed = false) {
 
   // FRESHMAN SPECIAL FLOW: Bypass campus/department logic and find ANY available room
   if (isFreshman) {
+    // 1. Find which campuses allow freshmen
+    const allowedCampusRules = await ApplicationControl.find({ 
+      isFreshmanRule: true,
+      isOpen: true 
+    });
+    
+    const allowedCampuses = allowedCampusRules.map(r => r.campus).filter(c => c !== 'Any');
+    const isAnyCampusAllowed = allowedCampusRules.some(r => r.campus === 'Any');
+
     const freshmanQuery = {
       gender: roomGenderFilter(gender),
       capacity: { $gt: 0 },
       $expr: { $lt: ["$currentOccupants", "$capacity"] }
     };
+
+    // If specific campuses are allowed, filter by them
+    if (!isAnyCampusAllowed && allowedCampuses.length > 0) {
+      freshmanQuery.campus = { $in: allowedCampuses };
+    } else if (!isAnyCampusAllowed && allowedCampuses.length === 0) {
+      // No campuses allow freshmen
+      return { room: null, isOverflow: false, campus: null };
+    }
+
     if (isSpecialNeed) {
       const firstFloors = await Floor.find({ floorNumber: 1 });
       freshmanQuery.floor = { $in: firstFloors.map((f) => f._id) };
@@ -255,6 +273,7 @@ async function findRoomForStudent(student, isSpecialNeed = false) {
     if (freshmanRoom) return { room: freshmanRoom, isOverflow: false, campus: freshmanRoom.campus };
     return { room: null, isOverflow: false, campus: null };
   }
+
 
   const campus = getCampusForDepartment(student.department);
   let query = {
@@ -490,6 +509,21 @@ const submitApplication = async (req, res) => {
     const studentCampus = getCampusForDepartment(student.department);
     const sponsorship = student.sponsorship || 'Government';
     
+    // === NEW: Granular Window Check ===
+    // 1. Check if Freshman rule applies
+    if (student.isFreshman) {
+      const freshmanSetting = await ApplicationControl.findOne({
+        isFreshmanRule: true,
+        isOpen: true
+      });
+      if (!freshmanSetting) {
+        return res.status(403).json({
+          success: false,
+          message: "Dorm applications are currently closed for freshman students."
+        });
+      }
+    }
+
     const granularSetting = await ApplicationControl.findOne({
       $or: [{ campus: studentCampus }, { campus: 'Any' }],
       $or: [{ locationCategory: cityCategory }, { locationCategory: 'all' }],

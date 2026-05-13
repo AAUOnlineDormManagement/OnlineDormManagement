@@ -20,7 +20,7 @@ const getSettings = async (req, res) => {
 const updateSettings = async (req, res) => {
   try {
     const { id } = req.params;
-    const { isOpen, waitMinutes, openedAt, closedAt } = req.body;
+    const { isOpen, waitMinutes, openedAt, closedAt, isFreshmanRule } = req.body;
     
     const setting = await ApplicationControl.findById(id);
     if (!setting) {
@@ -37,7 +37,9 @@ const updateSettings = async (req, res) => {
     setting.waitMinutes = waitMinutes !== undefined ? waitMinutes : setting.waitMinutes;
     setting.openedAt = openedAt !== undefined ? openedAt : setting.openedAt;
     setting.closedAt = closedAt !== undefined ? closedAt : setting.closedAt;
+    setting.isFreshmanRule = isFreshmanRule !== undefined ? isFreshmanRule : setting.isFreshmanRule;
     await setting.save();
+
 
     // Notify students if the window was opened
     if (setting.isOpen && !wasOpen) {
@@ -52,7 +54,7 @@ const updateSettings = async (req, res) => {
 
 const createSetting = async (req, res) => {
   try {
-    let { campus, locationCategory, sponsorshipType, isOpen, waitMinutes, openedAt, closedAt } = req.body;
+    let { campus, locationCategory, sponsorshipType, isOpen, waitMinutes, openedAt, closedAt, isFreshmanRule } = req.body;
     
     // Access control: CampusAdmin can only create for their own campus
     if (req.user.role === 'CampusAdmin') {
@@ -72,8 +74,10 @@ const createSetting = async (req, res) => {
       waitMinutes,
       openedAt,
       closedAt,
+      isFreshmanRule,
       createdBy: req.user._id
     });
+
 
     if (setting.isOpen) {
       await notifyCampusStudents(setting);
