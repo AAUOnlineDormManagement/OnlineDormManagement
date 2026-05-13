@@ -32,10 +32,9 @@ const userSchema = new mongoose.Schema({
 userSchema.pre('save', async function () {
   if (this.isModified('password') && this.password) {
     const pwd = String(this.password);
-    if (/^\$2[abxy]\$\d{2}\$/.test(pwd)) {
+    if (/^\$2[ab]\$\d{2}\$/.test(pwd)) {
       return;
     }
-
     this.password = await bcrypt.hash(pwd, 12);
   }
 });

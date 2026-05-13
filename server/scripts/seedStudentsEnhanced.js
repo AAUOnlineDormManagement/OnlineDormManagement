@@ -102,8 +102,7 @@ const seedStudents = async () => {
             isFreshman: false,
             phoneNumber: '0911000001'
         });
-        console.log('   ✅ Created Test Student: Belaynesh Getachew (UGR/0001/15) - PW: 1234');
-
+        console.log('   ✅ Created Test Student: Belaynesh Getachew (UGR/0001/15)');
 
         for (let i = 0; i < studentsToCreate; i++) {
 
