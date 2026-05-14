@@ -95,15 +95,33 @@ async function getEffectiveWaitMsForCityCategory(cityCategory, campus, sponsorsh
   const defaultWait = 3 * 60 * 1000;
 
   try {
-    const setting = await ApplicationControl.findOne({
+    const settings = await ApplicationControl.find({
       $or: [{ campus }, { campus: 'Any' }],
       $or: [{ locationCategory: cityCategory }, { locationCategory: 'all' }],
       $or: [{ sponsorshipType: sponsorship }, { sponsorshipType: 'Both' }]
-    }).sort({ campus: 1, locationCategory: 1, sponsorshipType: 1 });
+    });
 
-    if (setting) {
-      const waitMs = (setting.waitMinutes || 3) * 60 * 1000;
-      console.log(`⏱️ Applied admin wait rule: ${setting.waitMinutes} mins for ${campus} campus (${cityCategory})`);
+    if (settings.length > 0) {
+      // Priority Logic:
+      // 1. Specific Campus + Specific Location + Specific Sponsorship
+      // 2. Specific Campus + Specific Location + Both
+      // 3. Specific Campus + All Locations ...
+      // 4. Any Campus ...
+      
+      const bestSetting = settings.sort((a, b) => {
+        // Score based on specificity (Lower score = more specific)
+        const getScore = (s) => {
+          let score = 0;
+          if (s.campus === 'Any') score += 100;
+          if (s.locationCategory === 'all') score += 10;
+          if (s.sponsorshipType === 'Both') score += 1;
+          return score;
+        };
+        return getScore(a) - getScore(b);
+      })[0];
+
+      const waitMs = (bestSetting.waitMinutes || 3) * 60 * 1000;
+      console.log(`⏱️ Applied best wait rule: ${bestSetting.waitMinutes} mins for ${campus}/${cityCategory}/${sponsorship} (Found ${settings.length} matches, picked most specific: ${bestSetting.campus}/${bestSetting.locationCategory}/${bestSetting.sponsorshipType})`);
       return waitMs;
     }
   } catch (err) {
@@ -526,12 +544,26 @@ const submitApplication = async (req, res) => {
       }
       // Freshman passed — skip the rest of the granular window check
     } else {
-      // Non-freshman: apply normal granular window check
-      const granularSetting = await ApplicationControl.findOne({
+      // === Non-freshman: apply normal granular window check ===
+      const settings = await ApplicationControl.find({
         $or: [{ campus: studentCampus }, { campus: 'Any' }],
         $or: [{ locationCategory: cityCategory }, { locationCategory: 'all' }],
         $or: [{ sponsorshipType: sponsorship }, { sponsorshipType: 'Both' }]
-      }).sort({ campus: 1, locationCategory: 1, sponsorshipType: 1 });
+      });
+
+      let granularSetting = null;
+      if (settings.length > 0) {
+        granularSetting = settings.sort((a, b) => {
+          const getScore = (s) => {
+            let score = 0;
+            if (s.campus === 'Any') score += 100;
+            if (s.locationCategory === 'all') score += 10;
+            if (s.sponsorshipType === 'Both') score += 1;
+            return score;
+          };
+          return getScore(a) - getScore(b);
+        })[0];
+      }
 
       if (granularSetting) {
         const now = new Date();
