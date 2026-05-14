@@ -515,6 +515,7 @@ const submitApplication = async (req, res) => {
         isOpen: true
       });
       if (!anyOpenWindow) {
+        console.log(`🚫 Application blocked: Freshman ${student.userID} attempted but NO application windows are open anywhere.`);
         return res.status(403).json({
           success: false,
           message: "Dorm applications are currently closed for all students, including freshmen."
@@ -547,6 +548,7 @@ const submitApplication = async (req, res) => {
             dateMsg = ` (Opens on ${new Date(granularSetting.openedAt).toLocaleString()})`;
           }
 
+          console.log(`🚫 Application blocked: Granular window CLOSED for student ${student.userID} (${studentCampus}, ${cityCategory}, ${sponsorship})`);
           return res.status(403).json({
             success: false,
             message: `Dorm applications are currently closed for ${cityCategory.toUpperCase()} - ${sponsorship.toUpperCase()} students on ${studentCampus} campus.${dateMsg}`
