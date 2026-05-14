@@ -559,11 +559,6 @@ export default function PlacementRequestSimple() {
       return toast.error('FYDA back must be an image (JPG/PNG). PDFs are not allowed.');
     }
 
-    // Addis letter: server validates after OCR (central Addis vs outskirts on ID text).
-    // Note: Letter requirement is bypassed for automated 5-min test on backend too.
-    // Payment check removed here because self-sponsored students now pay AFTER submission 
-    // when a room is confirmed (or wait 5 mins for Addis).
-
     setSubmitting(true);
     const loadingToast = toast.loading(isAddis ? 'Preparing your Addis Ababa application...' : 'Submitting placement request...');
     try {

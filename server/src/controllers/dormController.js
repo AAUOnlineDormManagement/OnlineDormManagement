@@ -395,7 +395,10 @@ async function assignStudentToRoom(application, student) {
 const submitApplication = async (req, res) => {
   try {
     const globalConfig = await DormApplicationConfig.findOne({ key: 'global' });
-    if (!globalConfig?.isOpen) {
+    // If no global config exists, we treat it as OPEN by default for safety, 
+    // or you can create it. Let's assume it should exist.
+    if (globalConfig && !globalConfig.isOpen) {
+      console.log('🚫 Application blocked: Global toggle is CLOSED');
       return res.status(403).json({
         success: false,
         message: 'Dorm application is currently closed by administration.',
@@ -404,6 +407,7 @@ const submitApplication = async (req, res) => {
 
     if (globalConfig?.openedAt && Date.now() < new Date(globalConfig.openedAt).getTime()) {
       const openDateStr = new Date(globalConfig.openedAt).toLocaleString();
+      console.log('🚫 Application blocked: Global open date in future:', openDateStr);
       return res.status(403).json({
         success: false,
         message: `Dorm applications will open on ${openDateStr}. Please wait until then to apply.`,
