@@ -241,16 +241,11 @@ async function findRoomForStudent(student, isSpecialNeed = false) {
 
   const isFreshman = student.isFreshman || false;
 
-  // FRESHMAN SPECIAL FLOW: Bypass campus/department logic and find ANY available room
+  // FRESHMAN SPECIAL FLOW: Find ANY room in ANY campus that is currently OPEN
   if (isFreshman) {
-    // 1. Find which campuses allow freshmen
-    const allowedCampusRules = await ApplicationControl.find({ 
-      isFreshmanRule: true,
-      isOpen: true 
-    });
-    
-    const allowedCampuses = allowedCampusRules.map(r => r.campus).filter(c => c !== 'Any');
-    const isAnyCampusAllowed = allowedCampusRules.some(r => r.campus === 'Any');
+    // Find all campuses that have an open window
+    const openWindows = await ApplicationControl.find({ isOpen: true });
+    const openCampuses = [...new Set(openWindows.map(w => w.campus))];
 
     const freshmanQuery = {
       gender: roomGenderFilter(gender),
@@ -258,18 +253,18 @@ async function findRoomForStudent(student, isSpecialNeed = false) {
       $expr: { $lt: ["$currentOccupants", "$capacity"] }
     };
 
-    // If specific campuses are allowed, filter by them
-    if (!isAnyCampusAllowed && allowedCampuses.length > 0) {
-      freshmanQuery.campus = { $in: allowedCampuses };
-    } 
-    // If no specific campuses allow freshmen, we don't return null anymore.
-    // Instead, we allow them to be assigned to ANY free dorm in any campus!
-    // (This fulfills the user's request: "accepting and assigning a dorm for freshmans in any free dorm campuses")
+    // If "Any" is open, we don't need a campus filter. 
+    // Otherwise, filter by campuses that are explicitly open.
+    if (!openCampuses.includes('Any')) {
+      if (openCampuses.length === 0) return { room: null, isOverflow: false, campus: null };
+      freshmanQuery.campus = { $in: openCampuses };
+    }
 
     if (isSpecialNeed) {
       const firstFloors = await Floor.find({ floorNumber: 1 });
       freshmanQuery.floor = { $in: firstFloors.map((f) => f._id) };
     }
+    
     const freshmanRoom = await Room.findOne(freshmanQuery).populate('building');
     if (freshmanRoom) return { room: freshmanRoom, isOverflow: false, campus: freshmanRoom.campus };
     return { room: null, isOverflow: false, campus: null };
@@ -510,16 +505,15 @@ const submitApplication = async (req, res) => {
     const studentCampus = getCampusForDepartment(student.department);
     const sponsorship = student.sponsorship || 'Government';
     
-    // === Freshman bypass: only check isFreshmanRule, skip all other window logic ===
+    // === Freshman bypass: allow them if ANY application window is open ===
     if (student.isFreshman) {
-      const freshmanSetting = await ApplicationControl.findOne({
-        isFreshmanRule: true,
+      const anyOpenWindow = await ApplicationControl.findOne({
         isOpen: true
       });
-      if (!freshmanSetting) {
+      if (!anyOpenWindow) {
         return res.status(403).json({
           success: false,
-          message: "Dorm applications are currently closed for freshman students."
+          message: "Dorm applications are currently closed for all students, including freshmen."
         });
       }
       // Freshman passed — skip the rest of the granular window check

@@ -33,8 +33,7 @@ export default function ApplicationControl() {
     isOpen: true,
     waitMinutes: 3,
     openedAt: '',
-    closedAt: '',
-    isFreshmanRule: false
+    closedAt: ''
   });
 
 
@@ -122,17 +121,7 @@ export default function ApplicationControl() {
     }
   };
 
-  const handleFreshmanToggle = async (id, current) => {
-    try {
-      const res = await applicationControlApi.updateSetting(id, { isFreshmanRule: !current });
-      if (res.success) {
-        toast.success(`Freshman assignment ${!current ? 'Enabled' : 'Disabled'}`);
-        fetchSettings();
-      }
-    } catch (err) {
-      toast.error('Failed to update freshman rule');
-    }
-  };
+
 
   const handleDelete = async (id) => {
     if (!window.confirm('Are you sure you want to delete this rule?')) return;
@@ -197,7 +186,7 @@ export default function ApplicationControl() {
             </div>
             <div>
               <h3 className="text-sm font-bold text-amber-900">Priority Logic</h3>
-              <p className="text-xs text-amber-700 mt-1">Specific campus rules take priority over 'Any' campus rules.</p>
+              <p className="text-xs text-amber-700 mt-1">Specific campus rules take priority over 'Any' campus rules. Freshmen can apply if ANY window is open and are assigned immediately.</p>
             </div>
           </div>
           <div className="bg-blue-50 border border-blue-200 rounded-2xl p-4 flex gap-4">
@@ -301,16 +290,7 @@ export default function ApplicationControl() {
                   </div>
                 </div>
 
-                <div className="flex items-center gap-2 px-1">
-                  <input 
-                    type="checkbox"
-                    id="isFreshmanRule"
-                    className="w-4 h-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500"
-                    checked={newSetting.isFreshmanRule}
-                    onChange={(e) => setNewSetting({...newSetting, isFreshmanRule: e.target.checked})}
-                  />
-                  <label htmlFor="isFreshmanRule" className="text-sm font-bold text-slate-700">Allow Freshman Assignments</label>
-                </div>
+
 
 
 
@@ -336,7 +316,6 @@ export default function ApplicationControl() {
                 <tr className="bg-slate-50/80 border-b border-slate-200">
                   <th className="px-6 py-5 text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">Condition</th>
                   <th className="px-6 py-5 text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">Status</th>
-                  <th className="px-6 py-5 text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">Freshman</th>
                   <th className="px-6 py-5 text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">Schedule</th>
                   <th className="px-6 py-5 text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">Wait Time</th>
                   <th className="px-6 py-5 text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">Actions</th>
@@ -395,17 +374,7 @@ export default function ApplicationControl() {
                           {setting.isOpen ? <><FaUnlock /> Open</> : <><FaLock /> Closed</>}
                         </button>
                       </td>
-                      <td className="px-6 py-6">
-                        <div className="flex items-center gap-2">
-                          <input 
-                            type="checkbox"
-                            checked={setting.isFreshmanRule}
-                            onChange={() => handleFreshmanToggle(setting._id, setting.isFreshmanRule)}
-                            className="w-4 h-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500"
-                          />
-                          <span className="text-[10px] font-bold text-slate-500 uppercase">Allowed</span>
-                        </div>
-                      </td>
+
 
                       <td className="px-6 py-6">
                         <div className="space-y-2">
