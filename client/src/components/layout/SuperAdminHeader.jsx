@@ -130,15 +130,31 @@ export default function SuperAdminHeader() {
     navigate('/login');
   };
 
-  const navItems = [
+  const mainNavItems = [
     { path: '/super-admin-dashboard', label: 'Command Center', icon: FaGlobe },
     { path: '/super-admin/students', label: 'Global Students', icon: FaUsersCog },
     { path: '/super-admin/proctors', label: 'Staff Directory', icon: FaShieldAlt },
     { path: '/super-admin/buildings', label: 'Infrastructure', icon: FaUniversity },
+    { path: '/super-admin/application-control', label: 'Window', icon: FaClock }
+  ];
+
+  const moreNavItems = [
     { path: '/super-admin/reports', label: 'Analytics', icon: FaFileInvoice },
     { path: '/super-admin/operational-reports', label: 'Reports', icon: FaFile },
-    { path: '/super-admin/application-control', label: 'Window Control', icon: FaClock }
   ];
+
+  const [showMoreMenu, setShowMoreMenu] = useState(false);
+  const moreMenuRef = useRef(null);
+
+  useEffect(() => {
+    const handleClickOutsideMore = (event) => {
+      if (moreMenuRef.current && !moreMenuRef.current.contains(event.target)) {
+        setShowMoreMenu(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutsideMore);
+    return () => document.removeEventListener('mousedown', handleClickOutsideMore);
+  }, []);
 
   return (
     <header className="bg-white dark:bg-slate-950 border-b border-slate-200 dark:border-slate-800 sticky top-0 z-50 transition-colors duration-300">
@@ -154,7 +170,7 @@ export default function SuperAdminHeader() {
 
         {/* Navigation (Center) - visible on lg up */}
         <nav className="hidden lg:flex items-center justify-center gap-1.5 flex-1 mx-8">
-          {navItems.map((item) => {
+          {mainNavItems.map((item) => {
             const Icon = item.icon;
             // Match exactly or starts with for active state
             const isActive = location.pathname.startsWith(item.path) && (item.path !== '/super-admin-dashboard' || location.pathname === '/super-admin-dashboard');
@@ -173,6 +189,45 @@ export default function SuperAdminHeader() {
               </Link>
             );
           })}
+
+          {/* More Dropdown */}
+          <div className="relative" ref={moreMenuRef}>
+            <button
+              onClick={() => setShowMoreMenu(!showMoreMenu)}
+              className={`flex items-center gap-2 font-bold transition-all text-xs px-4 py-2.5 rounded-full ${
+                moreNavItems.some(item => location.pathname.startsWith(item.path)) || showMoreMenu
+                  ? 'bg-blue-600 text-white shadow-md shadow-blue-500/20'
+                  : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-slate-900 dark:hover:text-white'
+              }`}
+            >
+              More
+              <FaChevronDown className={`w-3 h-3 transition-transform ${showMoreMenu ? 'rotate-180' : ''}`} />
+            </button>
+            
+            {showMoreMenu && (
+              <div className="absolute top-full mt-2 right-0 w-48 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-xl py-2 z-50">
+                {moreNavItems.map((item) => {
+                  const Icon = item.icon;
+                  const isActive = location.pathname.startsWith(item.path);
+                  return (
+                    <Link
+                      key={item.path}
+                      to={item.path}
+                      onClick={() => setShowMoreMenu(false)}
+                      className={`flex items-center gap-3 px-4 py-2.5 text-xs font-bold transition-colors ${
+                        isActive 
+                          ? 'text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-900/20' 
+                          : 'text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800/50'
+                      }`}
+                    >
+                      <Icon className="w-3.5 h-3.5" />
+                      {item.label}
+                    </Link>
+                  );
+                })}
+              </div>
+            )}
+          </div>
         </nav>
 
         {/* Right side (Profile, Notifications, Logout) */}

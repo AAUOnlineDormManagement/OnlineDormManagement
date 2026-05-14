@@ -129,16 +129,32 @@ export default function AdminHeader() {
     navigate('/login');
   };
 
-  const navItems = [
+  const mainNavItems = [
     { path: '/dashboard', label: 'Dashboard', icon: MdDashboard },
     { path: '/students', label: 'Students', icon: FaUsers },
-    { path: '/staff-management', label: 'Proctors', icon: FaUsers }, // Reusing FaUsers or similar
+    { path: '/staff-management', label: 'Proctors', icon: FaUsers },
     { path: '/building-management', label: 'Blocks', icon: FaHouseUser },
     { path: '/assign-blocks', label: 'Assignments', icon: FaFile },
+    { path: '/application-control', label: 'Window', icon: FaClock },
+  ];
+
+  const moreNavItems = [
     { path: '/reports', label: 'Analytics', icon: FaChartPie },
     { path: '/operational-reports', label: 'Reports', icon: FaFile },
-    { path: '/application-control', label: 'Window Control', icon: FaClock },
   ];
+
+  const [showMoreMenu, setShowMoreMenu] = useState(false);
+  const moreMenuRef = useRef(null);
+
+  useEffect(() => {
+    const handleClickOutsideMore = (event) => {
+      if (moreMenuRef.current && !moreMenuRef.current.contains(event.target)) {
+        setShowMoreMenu(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutsideMore);
+    return () => document.removeEventListener('mousedown', handleClickOutsideMore);
+  }, []);
 
   return (
     <header className="bg-white dark:bg-slate-950 border-b border-gray-200 dark:border-slate-800 sticky top-0 z-50 transition-colors duration-300">
@@ -153,8 +169,8 @@ export default function AdminHeader() {
         </div>
 
         {/* Navigation (Center) */}
-        <nav className="hidden lg:flex items-center gap-6">
-          {navItems.map((item) => {
+        <nav className="hidden lg:flex items-center gap-4">
+          {mainNavItems.map((item) => {
             const Icon = item.icon;
             const isActive = location.pathname.startsWith(item.path);
             return (
@@ -172,6 +188,43 @@ export default function AdminHeader() {
               </Link>
             );
           })}
+
+          {/* More Dropdown */}
+          <div className="relative" ref={moreMenuRef}>
+            <button
+              onClick={() => setShowMoreMenu(!showMoreMenu)}
+              className={`flex items-center gap-2 font-semibold transition-colors text-sm px-3 py-2 rounded-lg ${
+                moreNavItems.some(item => location.pathname.startsWith(item.path)) || showMoreMenu
+                  ? 'bg-primary-light text-primary'
+                  : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
+              }`}
+            >
+              More
+              <FaChevronDown className={`w-3 h-3 transition-transform ${showMoreMenu ? 'rotate-180' : ''}`} />
+            </button>
+            
+            {showMoreMenu && (
+              <div className="absolute top-full mt-1 right-0 w-48 bg-white border border-slate-200 rounded-xl shadow-lg py-2 z-50">
+                {moreNavItems.map((item) => {
+                  const Icon = item.icon;
+                  const isActive = location.pathname.startsWith(item.path);
+                  return (
+                    <Link
+                      key={item.path}
+                      to={item.path}
+                      onClick={() => setShowMoreMenu(false)}
+                      className={`flex items-center gap-3 px-4 py-2 text-sm font-medium transition-colors ${
+                        isActive ? 'text-primary bg-primary-light/50' : 'text-slate-700 hover:bg-slate-50'
+                      }`}
+                    >
+                      <Icon className="w-4 h-4" />
+                      {item.label}
+                    </Link>
+                  );
+                })}
+              </div>
+            )}
+          </div>
         </nav>
 
         {/* Right side (Profile, Logout) */}

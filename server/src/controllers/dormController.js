@@ -260,10 +260,10 @@ async function findRoomForStudent(student, isSpecialNeed = false) {
     // If specific campuses are allowed, filter by them
     if (!isAnyCampusAllowed && allowedCampuses.length > 0) {
       freshmanQuery.campus = { $in: allowedCampuses };
-    } else if (!isAnyCampusAllowed && allowedCampuses.length === 0) {
-      // No campuses allow freshmen
-      return { room: null, isOverflow: false, campus: null };
-    }
+    } 
+    // If no specific campuses allow freshmen, we don't return null anymore.
+    // Instead, we allow them to be assigned to ANY free dorm in any campus!
+    // (This fulfills the user's request: "accepting and assigning a dorm for freshmans in any free dorm campuses")
 
     if (isSpecialNeed) {
       const firstFloors = await Floor.find({ floorNumber: 1 });
@@ -509,8 +509,7 @@ const submitApplication = async (req, res) => {
     const studentCampus = getCampusForDepartment(student.department);
     const sponsorship = student.sponsorship || 'Government';
     
-    // === NEW: Granular Window Check ===
-    // 1. Check if Freshman rule applies
+    // === Freshman bypass: only check isFreshmanRule, skip all other window logic ===
     if (student.isFreshman) {
       const freshmanSetting = await ApplicationControl.findOne({
         isFreshmanRule: true,
@@ -522,37 +521,39 @@ const submitApplication = async (req, res) => {
           message: "Dorm applications are currently closed for freshman students."
         });
       }
-    }
+      // Freshman passed — skip the rest of the granular window check
+    } else {
+      // Non-freshman: apply normal granular window check
+      const granularSetting = await ApplicationControl.findOne({
+        $or: [{ campus: studentCampus }, { campus: 'Any' }],
+        $or: [{ locationCategory: cityCategory }, { locationCategory: 'all' }],
+        $or: [{ sponsorshipType: sponsorship }, { sponsorshipType: 'Both' }]
+      }).sort({ campus: 1, locationCategory: 1, sponsorshipType: 1 });
 
-    const granularSetting = await ApplicationControl.findOne({
-      $or: [{ campus: studentCampus }, { campus: 'Any' }],
-      $or: [{ locationCategory: cityCategory }, { locationCategory: 'all' }],
-      $or: [{ sponsorshipType: sponsorship }, { sponsorshipType: 'Both' }]
-    }).sort({ campus: 1, locationCategory: 1, sponsorshipType: 1 });
+      if (granularSetting) {
+        const now = new Date();
+        let isWindowActive = granularSetting.isOpen;
 
-    if (granularSetting) {
-      const now = new Date();
-      let isWindowActive = granularSetting.isOpen;
-
-      // Check date constraints if set
-      if (granularSetting.openedAt && now < new Date(granularSetting.openedAt)) {
-        isWindowActive = false;
-      }
-      if (granularSetting.closedAt && now > new Date(granularSetting.closedAt)) {
-        isWindowActive = false;
-      }
-
-      if (!isWindowActive) {
-        let dateMsg = '';
+        // Check date constraints if set
         if (granularSetting.openedAt && now < new Date(granularSetting.openedAt)) {
-          dateMsg = ` (Opens on ${new Date(granularSetting.openedAt).toLocaleString()})`;
+          isWindowActive = false;
+        }
+        if (granularSetting.closedAt && now > new Date(granularSetting.closedAt)) {
+          isWindowActive = false;
         }
 
-        return res.status(403).json({
-          success: false,
-          message: `Dorm applications are currently closed for ${cityCategory.toUpperCase()} - ${sponsorship.toUpperCase()} students on ${studentCampus} campus.${dateMsg}`
-        });
-      }
+        if (!isWindowActive) {
+          let dateMsg = '';
+          if (granularSetting.openedAt && now < new Date(granularSetting.openedAt)) {
+            dateMsg = ` (Opens on ${new Date(granularSetting.openedAt).toLocaleString()})`;
+          }
+
+          return res.status(403).json({
+            success: false,
+            message: `Dorm applications are currently closed for ${cityCategory.toUpperCase()} - ${sponsorship.toUpperCase()} students on ${studentCampus} campus.${dateMsg}`
+          });
+        }
+
     }
 
 
