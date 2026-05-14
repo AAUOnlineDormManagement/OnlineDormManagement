@@ -102,12 +102,15 @@ async function getEffectiveWaitMsForCityCategory(cityCategory, campus, sponsorsh
     }).sort({ campus: 1, locationCategory: 1, sponsorshipType: 1 });
 
     if (setting) {
-      return (setting.waitMinutes || 3) * 60 * 1000;
+      const waitMs = (setting.waitMinutes || 3) * 60 * 1000;
+      console.log(`⏱️ Applied admin wait rule: ${setting.waitMinutes} mins for ${campus} campus (${cityCategory})`);
+      return waitMs;
     }
   } catch (err) {
     console.error('Error fetching granular wait time:', err.message);
   }
 
+  console.log(`⏱️ No specific wait rule found, using default: ${defaultWait / 60000} mins`);
   return defaultWait;
 }
 const { getCampusForDepartment } = require('../utils/campus');
