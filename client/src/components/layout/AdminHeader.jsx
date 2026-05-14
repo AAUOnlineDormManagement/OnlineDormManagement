@@ -10,7 +10,8 @@ import {
   FaTrash,
   FaCheck,
   FaChevronDown,
-  FaUserCog
+  FaUserCog,
+  FaClock
 } from 'react-icons/fa';
 import { MdDashboard } from 'react-icons/md';
 import BuildingIcon from '../common/BuildingIcon';
@@ -136,6 +137,7 @@ export default function AdminHeader() {
     { path: '/assign-blocks', label: 'Assignments', icon: FaFile },
     { path: '/reports', label: 'Analytics', icon: FaChartPie },
     { path: '/operational-reports', label: 'Reports', icon: FaFile },
+    { path: '/application-control', label: 'Window Control', icon: FaClock },
   ];
 
   return (

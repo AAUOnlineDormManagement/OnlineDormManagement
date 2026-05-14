@@ -12,7 +12,8 @@ import {
   FaTrash,
   FaCheck,
   FaChevronDown,
-  FaUserCog
+  FaUserCog,
+  FaClock
 } from 'react-icons/fa';
 import logoImg from '../../assets/logo/logo.png';
 import notificationApi from '../../api/notificationApi';
@@ -135,7 +136,8 @@ export default function SuperAdminHeader() {
     { path: '/super-admin/proctors', label: 'Staff Directory', icon: FaShieldAlt },
     { path: '/super-admin/buildings', label: 'Infrastructure', icon: FaUniversity },
     { path: '/super-admin/reports', label: 'Analytics', icon: FaFileInvoice },
-    { path: '/super-admin/operational-reports', label: 'Reports', icon: FaFile }
+    { path: '/super-admin/operational-reports', label: 'Reports', icon: FaFile },
+    { path: '/super-admin/application-control', label: 'Window Control', icon: FaClock }
   ];
 
   return (
