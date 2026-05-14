@@ -74,7 +74,11 @@ export default function ApplicationControl() {
   const handleCreate = async (e) => {
     e.preventDefault();
     try {
-      const res = await applicationControlApi.createSetting(newSetting);
+      const payload = { ...newSetting };
+      if (payload.openedAt) payload.openedAt = new Date(payload.openedAt).toISOString();
+      if (payload.closedAt) payload.closedAt = new Date(payload.closedAt).toISOString();
+      
+      const res = await applicationControlApi.createSetting(payload);
       if (res.success) {
         toast.success('New control rule added');
         setIsAdding(false);
@@ -111,7 +115,9 @@ export default function ApplicationControl() {
 
   const handleDateChange = async (id, field, value) => {
     try {
-      const res = await applicationControlApi.updateSetting(id, { [field]: value });
+      // Convert local datetime string to ISO string (UTC) to avoid timezone mismatches on the server
+      const isoValue = value ? new Date(value).toISOString() : null;
+      const res = await applicationControlApi.updateSetting(id, { [field]: isoValue });
       if (res.success) {
         toast.success('Schedule updated');
         fetchSettings();

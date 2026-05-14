@@ -578,15 +578,16 @@ const submitApplication = async (req, res) => {
         }
 
         if (!isWindowActive) {
+          const serverNow = new Date();
           let dateMsg = '';
-          if (granularSetting.openedAt && now < new Date(granularSetting.openedAt)) {
+          if (granularSetting.openedAt && serverNow < new Date(granularSetting.openedAt)) {
             dateMsg = ` (Opens on ${new Date(granularSetting.openedAt).toLocaleString()})`;
           }
 
-          console.log(`🚫 Application blocked: Granular window CLOSED for student ${student.userID} (${studentCampus}, ${cityCategory}, ${sponsorship})`);
+          console.log(`🚫 Application blocked: Window CLOSED. Server Time: ${serverNow.toISOString()}, Rule OpenedAt: ${granularSetting.openedAt?.toISOString()}`);
           return res.status(403).json({
             success: false,
-            message: `Dorm applications are currently closed for ${cityCategory.toUpperCase()} - ${sponsorship.toUpperCase()} students on ${studentCampus} campus.${dateMsg}`
+            message: `Dorm applications are currently closed for ${cityCategory.toUpperCase()} - ${sponsorship.toUpperCase()} students on ${studentCampus} campus.${dateMsg} [Server Time: ${serverNow.toLocaleTimeString()}]`
           });
         }
       } else {
