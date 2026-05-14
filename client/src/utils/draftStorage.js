@@ -6,6 +6,15 @@
 const DB_NAME = 'DormAppDraftDB';
 const STORE_NAME = 'draftFiles';
 
+const getCurrentUserId = () => {
+  try {
+    const user = JSON.parse(localStorage.getItem('user'));
+    return user?.userId || 'unknown_user';
+  } catch (e) {
+    return 'unknown_user';
+  }
+};
+
 const initDB = () => {
   return new Promise((resolve, reject) => {
     const request = indexedDB.open(DB_NAME, 1);
@@ -21,8 +30,9 @@ const initDB = () => {
 };
 
 export const saveDraft = async (textData, files) => {
+  const userId = getCurrentUserId();
   // Save text data to LocalStorage
-  localStorage.setItem('dorm_app_draft_text', JSON.stringify(textData));
+  localStorage.setItem(`${userId}_dorm_app_draft_text`, JSON.stringify(textData));
 
   // Save files to IndexedDB
   const db = await initDB();
@@ -31,9 +41,9 @@ export const saveDraft = async (textData, files) => {
   
   for (const [key, file] of Object.entries(files)) {
     if (file instanceof File) {
-      store.put(file, key);
+      store.put(file, `${userId}_${key}`);
     } else {
-      store.delete(key);
+      store.delete(`${userId}_${key}`);
     }
   }
   
@@ -43,7 +53,8 @@ export const saveDraft = async (textData, files) => {
 };
 
 export const loadDraft = async () => {
-  const textData = JSON.parse(localStorage.getItem('dorm_app_draft_text') || '{}');
+  const userId = getCurrentUserId();
+  const textData = JSON.parse(localStorage.getItem(`${userId}_dorm_app_draft_text`) || '{}');
   
   const db = await initDB();
   const tx = db.transaction(STORE_NAME, 'readonly');
@@ -53,7 +64,7 @@ export const loadDraft = async () => {
   const files = {};
   
   for (const key of fileKeys) {
-    const request = store.get(key);
+    const request = store.get(`${userId}_${key}`);
     await new Promise((resolve) => {
       request.onsuccess = (e) => {
         if (e.target.result) {
@@ -70,9 +81,13 @@ export const loadDraft = async () => {
 };
 
 export const clearDraft = async () => {
-  localStorage.removeItem('dorm_app_draft_text');
+  const userId = getCurrentUserId();
+  localStorage.removeItem(`${userId}_dorm_app_draft_text`);
+  
   const db = await initDB();
   const tx = db.transaction(STORE_NAME, 'readwrite');
   const store = tx.objectStore(STORE_NAME);
-  store.clear();
+  
+  const fileKeys = ['fydaFront', 'fydaBack', 'addisLetter', 'paymentReceipt'];
+  fileKeys.forEach(key => store.delete(`${userId}_${key}`));
 };

@@ -1,4 +1,5 @@
 import api from './axiosConfig';
+import { clearDraft } from '../utils/draftStorage';
 
 // Request and Response interceptors are now centralized in axiosConfig.js
 
@@ -43,6 +44,9 @@ const authApi = {
     localStorage.removeItem('user');
     delete api.defaults.headers.common['Authorization'];
     console.log('👋 User logged out');
+    
+    // Clear any pending dorm application drafts so another student doesn't see them
+    clearDraft().catch(e => console.error('Failed to clear draft on logout:', e));
   },
   
   // Get current user
