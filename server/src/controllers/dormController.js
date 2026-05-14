@@ -582,6 +582,7 @@ const submitApplication = async (req, res) => {
         }
 
         if (!isWindowActive) {
+          const serverNow = new Date();
           const localNow = nowLocal;
           let dateMsg = '';
           if (granularSetting.openedAt && localNow < new Date(granularSetting.openedAt)) {
