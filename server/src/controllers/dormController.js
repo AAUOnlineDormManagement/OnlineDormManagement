@@ -416,8 +416,9 @@ async function assignStudentToRoom(application, student) {
 const submitApplication = async (req, res) => {
   try {
     const globalConfig = await DormApplicationConfig.findOne({ key: 'global' });
-    // If no global config exists, we treat it as OPEN by default for safety, 
-    // or you can create it. Let's assume it should exist.
+    const nowLocal = new Date(Date.now() + 3 * 60 * 60 * 1000);
+
+    // 1. Global master switch
     if (globalConfig && !globalConfig.isOpen) {
       console.log('🚫 Application blocked: Global toggle is CLOSED');
       return res.status(403).json({
@@ -426,9 +427,10 @@ const submitApplication = async (req, res) => {
       });
     }
 
-    if (globalConfig?.openedAt && Date.now() < new Date(globalConfig.openedAt).getTime()) {
+    // 2. Global scheduled opening
+    if (globalConfig?.openedAt && nowLocal < new Date(globalConfig.openedAt)) {
       const openDateStr = new Date(globalConfig.openedAt).toLocaleString();
-      console.log('🚫 Application blocked: Global open date in future:', openDateStr);
+      console.log('🚫 Application blocked: Global open date in future:', openDateStr, 'LocalNow:', nowLocal.toISOString());
       return res.status(403).json({
         success: false,
         message: `Dorm applications will open on ${openDateStr}. Please wait until then to apply.`,
@@ -567,20 +569,22 @@ const submitApplication = async (req, res) => {
 
       if (granularSetting) {
         const now = new Date();
+        // Adjust 'now' to match local time (+3:00) for comparison against local date strings
+        const nowLocal = new Date(Date.now() + 3 * 60 * 60 * 1000);
         let isWindowActive = granularSetting.isOpen;
 
         // Check date constraints if set
-        if (granularSetting.openedAt && now < new Date(granularSetting.openedAt)) {
+        if (granularSetting.openedAt && nowLocal < new Date(granularSetting.openedAt)) {
           isWindowActive = false;
         }
-        if (granularSetting.closedAt && now > new Date(granularSetting.closedAt)) {
+        if (granularSetting.closedAt && nowLocal > new Date(granularSetting.closedAt)) {
           isWindowActive = false;
         }
 
         if (!isWindowActive) {
-          const serverNow = new Date();
+          const localNow = nowLocal;
           let dateMsg = '';
-          if (granularSetting.openedAt && serverNow < new Date(granularSetting.openedAt)) {
+          if (granularSetting.openedAt && localNow < new Date(granularSetting.openedAt)) {
             dateMsg = ` (Opens on ${new Date(granularSetting.openedAt).toLocaleString()})`;
           }
 
