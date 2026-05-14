@@ -554,6 +554,13 @@ const submitApplication = async (req, res) => {
             message: `Dorm applications are currently closed for ${cityCategory.toUpperCase()} - ${sponsorship.toUpperCase()} students on ${studentCampus} campus.${dateMsg}`
           });
         }
+      } else {
+        // NO RULE FOUND - Block by default for regular students
+        console.log(`🚫 Application blocked: No window rule found for ${student.userID} (${studentCampus}, ${cityCategory}, ${sponsorship})`);
+        return res.status(403).json({
+          success: false,
+          message: `Dorm applications are currently closed for ${sponsorship.toUpperCase()} students from ${cityCategory.toUpperCase()} on the ${studentCampus} campus.`
+        });
       }
     }
 
