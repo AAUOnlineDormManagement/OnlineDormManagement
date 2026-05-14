@@ -29,11 +29,12 @@ function isBcryptHash(value) {
 
 // Unified login for Student / Proctor / Admin
 const loginUser = async (req, res) => {
-  const { userId: incomingUserId = '', password: incomingPassword = '' } = req.body || {};
-  let userId = (incomingUserId || req.body.userID || req.body.studentId || '')
-    .trim()
-    .replace(/[\\|]/g, '/');
-  const passwordPlain = String(incomingPassword).trim();
+  const body = req.body || {};
+  let userId = (body.userId || body.userID || body.studentId || '').trim();
+  // Normalize any backslash separators to forward slash
+  userId = userId.replace(/[\\|]/g, '/');
+  
+  const passwordPlain = String(body.password ?? '').trim();
 
   console.log('🔐 Login attempt:', userId);
 

@@ -1,6 +1,6 @@
 // src/controllers/dormController.js
 const path = require('path');
-const { createWorker, createScheduler } = require('tesseract.js');
+// tesseract.js is required lazily inside getOcrScheduler to avoid heavy cold-start imports on Vercel.
 const { initializeChapaPayment } = require('../utils/chapa');
 
 // --- OCR Optimization: Shared Scheduler ---
@@ -14,6 +14,7 @@ async function getOcrScheduler() {
   ocrInitPromise = (async () => {
     try {
       console.log('🏗️  Initializing OCR Singleton Scheduler (3 Workers)...');
+      const { createWorker, createScheduler } = require('tesseract.js');
       const tempScheduler = createScheduler();
       
       const p1 = createWorker('eng');
@@ -553,7 +554,7 @@ const submitApplication = async (req, res) => {
             message: `Dorm applications are currently closed for ${cityCategory.toUpperCase()} - ${sponsorship.toUpperCase()} students on ${studentCampus} campus.${dateMsg}`
           });
         }
-
+      }
     }
 
 
