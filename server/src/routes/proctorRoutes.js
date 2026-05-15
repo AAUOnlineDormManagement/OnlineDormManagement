@@ -8,6 +8,11 @@ const {
   getReports,
   getOverview
 } = require('../controllers/proctorController');
+const {
+  submitProctorReport,
+  getMyReports
+} = require('../controllers/proctorReportController');
+const upload = require('../middleware/uploadMiddleware');
 
 // All proctor routes require authentication and Proctor role
 router.use(protect);
@@ -23,8 +28,14 @@ router.get('/students', getStudents);
 router.get('/profile', getProfile);
 
 // Reports and Overview
-router.get('/reports', getReports);
 router.get('/overview', getOverview);
+
+// Legacy reports (if any)
+router.get('/reports', getReports);
+
+// New Proctor Reports
+router.post('/proctor-reports', upload.array('attachments', 5), submitProctorReport);
+router.get('/proctor-reports/my', getMyReports);
 
 module.exports = router;
 

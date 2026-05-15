@@ -141,6 +141,7 @@ export default function SuperAdminHeader() {
   const moreNavItems = [
     { path: '/super-admin/reports', label: 'Analytics', icon: FaFileInvoice },
     { path: '/super-admin/operational-reports', label: 'Reports', icon: FaFile },
+    { path: '/super-admin/proctor-reports', label: 'Proctor Reports', icon: FaFile },
   ];
 
   const [showMoreMenu, setShowMoreMenu] = useState(false);

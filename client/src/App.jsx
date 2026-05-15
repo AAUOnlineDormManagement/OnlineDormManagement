@@ -20,6 +20,9 @@ import StudentComplaints from './pages/Proctor/StudentComplaints';
 import StudentList from './pages/Proctor/StudentList';
 import StudentExitClearance from './pages/Proctor/StudentExitClearance';
 import ProctorProfile from './pages/Proctor/ProctorProfile';
+import SubmitReport from './pages/proctor/SubmitReport';
+import MyReports from './pages/proctor/MyReports';
+import ProctorReports from './pages/ProctorReports';
 
 import ProctorSettings from './pages/Proctor/ProctorSettings';
 import PublicScanner from './pages/PublicScanner';
@@ -97,6 +100,7 @@ function App() {
           <Route path="/operational-reports" element={<OperationalReports />} />
           <Route path="/access-requests" element={<AccessRequests />} />
           <Route path="/application-control" element={<ApplicationControl />} />
+          <Route path="/proctor-reports" element={<ProctorReports />} />
           <Route path="/admin/profile" element={<Profile />} />
           <Route path="/admin/settings" element={<Settings />} />
         </Route>
@@ -113,6 +117,7 @@ function App() {
           <Route path="/super-admin/assign-blocks" element={<AssignBlocks />} />
           <Route path="/super-admin/reports" element={<Reports />} />
           <Route path="/super-admin/operational-reports" element={<OperationalReports />} />
+          <Route path="/super-admin/proctor-reports" element={<ProctorReports />} />
           <Route path="/super-admin/access-requests" element={<AccessRequests />} />
           <Route path="/super-admin/application-control" element={<ApplicationControl />} />
           <Route path="/super-admin/profile" element={<Profile />} />
@@ -128,6 +133,8 @@ function App() {
           <Route path="exit-clearance" element={<StudentExitClearance />} />
           <Route path="reports" element={<Reports />} />
           <Route path="operational-reports" element={<OperationalReports />} />
+          <Route path="submit-report" element={<SubmitReport />} />
+          <Route path="my-reports" element={<MyReports />} />
 
           <Route path="profile" element={<ProctorProfile />} />
           <Route path="settings" element={<ProctorSettings />} />

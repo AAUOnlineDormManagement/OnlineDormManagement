@@ -57,6 +57,28 @@ const proctorApi = {
     } catch (error) {
       throw error.response?.data || { message: 'Error fetching overview' };
     }
+  },
+
+  // Submit a new Proctor Report
+  submitReport: async (formData) => {
+    try {
+      const response = await api.post('/proctor/proctor-reports', formData, {
+        headers: { 'Content-Type': 'multipart/form-data' },
+      });
+      return response.data;
+    } catch (error) {
+      throw error.response?.data || { message: 'Error submitting report' };
+    }
+  },
+
+  // Get own submitted Proctor Reports
+  getMyReports: async () => {
+    try {
+      const response = await api.get('/proctor/proctor-reports/my');
+      return response.data;
+    } catch (error) {
+      throw error.response?.data || { message: 'Error fetching my reports' };
+    }
   }
 };
 

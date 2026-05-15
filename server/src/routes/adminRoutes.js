@@ -14,6 +14,10 @@ const {
   listProctors,
   getReportSeries
 } = require('../controllers/adminDashboardController');
+const {
+  getAllProctorReports,
+  updateReportStatus
+} = require('../controllers/proctorReportController');
 const Log = require('../models/Log');  
 const router = express.Router();
 
@@ -42,6 +46,10 @@ router.post('/proctors', createProctor);
 router.put('/proctors/:id', updateProctor);
 router.delete('/proctors/:id', deleteProctor);
 router.get('/reports', getReportSeries);
+
+// Proctor Reports
+router.get('/proctor-reports', getAllProctorReports);
+router.put('/proctor-reports/:id/status', updateReportStatus);
 
 // Get action logs (for accountability)
 router.get('/logs', async (req, res) => {

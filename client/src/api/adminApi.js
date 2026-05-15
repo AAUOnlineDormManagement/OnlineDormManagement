@@ -48,6 +48,14 @@ const adminApi = {
   deleteProctor: async (id) => {
     const res = await api.delete(`/admin/proctors/${id}`);
     return res.data;
+  },
+  getProctorReports: async () => {
+    const res = await api.get('/admin/proctor-reports');
+    return res.data;
+  },
+  updateProctorReportStatus: async (id, status, adminComment) => {
+    const res = await api.put(`/admin/proctor-reports/${id}/status`, { status, adminComment });
+    return res.data;
   }
 };
 

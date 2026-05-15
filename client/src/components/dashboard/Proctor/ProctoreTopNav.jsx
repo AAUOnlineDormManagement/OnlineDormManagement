@@ -73,18 +73,29 @@ const menuItems = [
     ]
   },
   {
-    id: 'reports',
-    label: 'Analytics',
-    icon: FaChartBar,
-    path: '/proctor/reports',
-    hasNotification: false
-  },
-  {
-    id: 'operational-reports',
-    label: 'Reports',
+    id: 'reports-system',
+    label: 'Reports System',
     icon: FaFile,
-    path: '/proctor/operational-reports',
-    hasNotification: false
+    submenu: [
+      {
+        id: 'submit-report',
+        label: 'Submit Report',
+        icon: FaPaperPlane,
+        path: '/proctor/submit-report',
+      },
+      {
+        id: 'my-reports',
+        label: 'My Reports',
+        icon: FaFileAlt,
+        path: '/proctor/my-reports',
+      },
+      {
+        id: 'operational-reports',
+        label: 'Operational',
+        icon: FaChartBar,
+        path: '/proctor/operational-reports',
+      }
+    ]
   }
 ];
 

@@ -141,6 +141,7 @@ export default function AdminHeader() {
   const moreNavItems = [
     { path: '/reports', label: 'Analytics', icon: FaChartPie },
     { path: '/operational-reports', label: 'Reports', icon: FaFile },
+    { path: '/proctor-reports', label: 'Proctor Reports', icon: FaFile },
   ];
 
   const [showMoreMenu, setShowMoreMenu] = useState(false);
