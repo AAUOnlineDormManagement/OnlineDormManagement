@@ -89,48 +89,6 @@ function detectCityCategoryFromBackText(backText) {
   return 'other';
 }
 
-async function getEffectiveWaitMsForCityCategory(cityCategory, campus, sponsorship) {
-  // Default fallbacks if no granular control is found
-  if (cityCategory !== 'addis' && cityCategory !== 'shager') return 0;
-  const defaultWait = 3 * 60 * 1000;
-
-  try {
-    const settings = await ApplicationControl.find({
-      $or: [{ campus }, { campus: 'Any' }],
-      $or: [{ locationCategory: cityCategory }, { locationCategory: 'all' }],
-      $or: [{ sponsorshipType: sponsorship }, { sponsorshipType: 'Both' }]
-    });
-
-    if (settings.length > 0) {
-      // Priority Logic:
-      // 1. Specific Campus + Specific Location + Specific Sponsorship
-      // 2. Specific Campus + Specific Location + Both
-      // 3. Specific Campus + All Locations ...
-      // 4. Any Campus ...
-      
-      const bestSetting = settings.sort((a, b) => {
-        // Score based on specificity (Lower score = more specific)
-        const getScore = (s) => {
-          let score = 0;
-          if (s.campus === 'Any') score += 100;
-          if (s.locationCategory === 'all') score += 10;
-          if (s.sponsorshipType === 'Both') score += 1;
-          return score;
-        };
-        return getScore(a) - getScore(b);
-      })[0];
-
-      const waitMs = (bestSetting.waitMinutes || 3) * 60 * 1000;
-      console.log(`⏱️ Applied best wait rule: ${bestSetting.waitMinutes} mins for ${campus}/${cityCategory}/${sponsorship} (Found ${settings.length} matches, picked most specific: ${bestSetting.campus}/${bestSetting.locationCategory}/${bestSetting.sponsorshipType})`);
-      return waitMs;
-    }
-  } catch (err) {
-    console.error('Error fetching granular wait time:', err.message);
-  }
-
-  console.log(`⏱️ No specific wait rule found, using default: ${defaultWait / 60000} mins`);
-  return defaultWait;
-}
 const { getCampusForDepartment } = require('../utils/campus');
 const {
   normalizeAscii,
@@ -609,14 +567,10 @@ const submitApplication = async (req, res) => {
     const isAddis = cityCategory === 'addis' || cityCategory === 'shager';
     const isFar = impliesFarAddis(finalCity, backText);
     
-    // Get dynamic wait time from settings
-    const waitMs = await getEffectiveWaitMsForCityCategory(cityCategory, studentCampus, sponsorship);
     const isSelfSponsored = isSelfSponsoredStudent(student);
     
     let status = 'Pending';
-    let scheduledReleaseAt = null;
     let paymentStatus = isSelfSponsored ? 'Pending' : 'NotRequired';
-
 
     let foundRoom = null;
     let foundCampus = null;
@@ -629,38 +583,28 @@ const submitApplication = async (req, res) => {
       status = 'Pending';  // stays Pending until admin review
       paymentStatus = 'NotRequired';
     } else {
-      // Normal flow for regular students (no staff/special need flags)
-      if (isAddis && !isFar && !student.isFreshman) {
-        // OCR-based city policy:
-        // - Addis Ababa => 5 min default
-        // - Shager => 3 min default
-        // - If admin opened applications for campus, waits use window-linked minutes.
-        status = 'Waiting';
-        scheduledReleaseAt = new Date(Date.now() + waitMs);
-        paymentStatus = isSelfSponsored ? 'Pending' : 'NotRequired';
-      } else {
-        // Outside Addis residents OR Freshmen OR Outskirts residents get immediate room check and assignment
-        const { room, campus } = await findRoomForStudent(student, student.isSpecialNeed);
+      // IMMEDIATE ASSIGNMENT FOR EVERYONE (including Addis residents)
+      const { room, campus } = await findRoomForStudent(student, student.isSpecialNeed);
 
-        if (room) {
-          foundRoom = room;
-          foundCampus = campus;
-          if (isSelfSponsored) {
-            status = 'PaymentPending';
-            paymentStatus = 'Pending';
-            try {
-              paymentInfo = await initializeChapaPayment(student, 3000);
-            } catch (e) {
-              console.error('Chapa init failed:', e.message);
-            }
-          } else {
-            // Government-sponsored non-Addis: assign immediately
-            status = 'Assigned';
-            paymentStatus = 'NotRequired';
+      if (room) {
+        foundRoom = room;
+        foundCampus = campus;
+        if (isSelfSponsored) {
+          status = 'PaymentPending';
+          paymentStatus = 'Pending';
+          try {
+            paymentInfo = await initializeChapaPayment(student, 3000);
+          } catch (e) {
+            console.error('Chapa init failed:', e.message);
           }
         } else {
-          status = 'Pending'; 
+          // Government-sponsored: assign immediately
+          status = 'Assigned';
+          paymentStatus = 'NotRequired';
         }
+      } else {
+        // No room found: remain in queue (Pending)
+        status = 'Pending'; 
       }
     }
 
@@ -692,7 +636,6 @@ const submitApplication = async (req, res) => {
       paymentStatus,
       status,
       chapaTxRef,
-      scheduledReleaseAt,
       originVerified,
       originVerificationNote: verificationNote
     };
@@ -726,10 +669,6 @@ const submitApplication = async (req, res) => {
     let message = 'Application submitted successfully.';
     if (needsAdminApproval) {
       message = `Your application has been submitted. Since you selected staff-related or special need assistance, please visit your campus administrative office to complete the dorm assignment process. An administrator will review your request and assign you a dorm.`;
-    } else if (application.status === 'Waiting') {
-      const minuteLabel = cityCategory === 'shager' ? 'Shager' : 'Addis Ababa';
-      const waitMinsDisplay = Math.max(0, Math.ceil(waitMs / 60000));
-      message = `City of ${minuteLabel} detected. Please wait ${waitMinsDisplay} minute(s) while we verify room availability.`;
     } else if (application.status === 'PaymentPending') {
       message = `Room found (${foundRoom?.building?.name || ''} - ${foundRoom?.roomNumber || ''}) on ${foundCampus || 'assigned'} campus. Please complete your payment to finalize assignment.`;
     } else if (application.status === 'Assigned') {
@@ -737,9 +676,6 @@ const submitApplication = async (req, res) => {
     }
 
     const appObj = application.toObject();
-    if (application.status === 'Waiting' && application.scheduledReleaseAt) {
-      appObj.remainingMs = Math.max(0, new Date(application.scheduledReleaseAt).getTime() - Date.now());
-    }
 
     return res.json({
       success: true,
@@ -773,13 +709,11 @@ const getMyApplication = async (req, res) => {
 
     const needsAdminApproval = student.isStaffRelated || student.isSpecialNeed;
 
-    // AUTO-ASSIGN: If waiting period has expired, or if a regular student is stuck in Pending (retry)
-    const isWaitingExpired = application.status === 'Waiting' && application.scheduledReleaseAt && Date.now() >= new Date(application.scheduledReleaseAt).getTime();
+    // AUTO-ASSIGN: If a regular student is stuck in Pending (retry)
     const isPendingRetry = application.status === 'Pending' && !needsAdminApproval;
 
-    if (isWaitingExpired || isPendingRetry) {
-        if (isWaitingExpired) console.log(`⏰ Wait expired for ${student.user?.name || 'student'} — checking room availability...`);
-        if (isPendingRetry) console.log(`🔄 Retrying assignment for Pending student ${student.user?.name || 'student'}...`);
+    if (isPendingRetry) {
+        console.log(`🔄 Retrying assignment for Pending student ${student.user?.name || 'student'}...`);
         
         try {
           const { room, isOverflow, campus } = await findRoomForStudent(student, student.isSpecialNeed);

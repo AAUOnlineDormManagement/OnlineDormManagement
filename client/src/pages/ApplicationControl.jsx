@@ -31,7 +31,6 @@ export default function ApplicationControl() {
     locationCategory: 'all',
     sponsorshipType: 'Both',
     isOpen: true,
-    waitMinutes: 3,
     openedAt: '',
     closedAt: ''
   });
@@ -94,18 +93,6 @@ export default function ApplicationControl() {
       }
     } catch (err) {
       toast.error('Failed to update status');
-    }
-  };
-
-  const handleWaitChange = async (id, minutes) => {
-    try {
-      const res = await applicationControlApi.updateSetting(id, { waitMinutes: parseInt(minutes) });
-      if (res.success) {
-        toast.success('Wait time updated');
-        fetchSettings();
-      }
-    } catch (err) {
-      toast.error('Failed to update wait time');
     }
   };
 
@@ -256,20 +243,7 @@ export default function ApplicationControl() {
 
                   <div>
                     <label className="block text-xs font-black text-slate-400 uppercase mb-1.5 ml-1">Wait Time (Minutes)</label>
-                    <div className="relative">
-                      <FaClock className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-300" />
-                      <input 
-                        type="number"
-                        min="0"
-                        className="w-full bg-slate-50 border-2 border-slate-100 rounded-xl pl-12 pr-4 py-3 text-sm font-semibold text-slate-700 focus:border-indigo-500 transition-all outline-none"
-                        value={newSetting.waitMinutes}
-                        onChange={(e) => setNewSetting({...newSetting, waitMinutes: e.target.value})}
-                      />
-                    </div>
-                  </div>
-
                 <div className="grid grid-cols-2 gap-4">
-
                   <div>
                     <label className="block text-xs font-black text-slate-400 uppercase mb-1.5 ml-1">Open At</label>
                     <input 
@@ -317,7 +291,6 @@ export default function ApplicationControl() {
                   <th className="px-6 py-5 text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">Condition</th>
                   <th className="px-6 py-5 text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">Status</th>
                   <th className="px-6 py-5 text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">Schedule</th>
-                  <th className="px-6 py-5 text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">Wait Time</th>
                   <th className="px-6 py-5 text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">Actions</th>
                 </tr>
               </thead>
@@ -399,18 +372,7 @@ export default function ApplicationControl() {
                         </div>
                       </td>
 
-                      <td className="px-6 py-6">
-                        <div className="flex items-center gap-3">
-                          <input 
-                            type="number"
-                            min="0"
-                            className="w-16 bg-slate-50 border-2 border-slate-100 rounded-lg px-2 py-1.5 text-xs font-black text-slate-700 focus:border-indigo-500 transition-all outline-none"
-                            defaultValue={setting.waitMinutes}
-                            onBlur={(e) => handleWaitChange(setting._id, e.target.value)}
-                          />
-                          <span className="text-xs font-bold text-slate-400 uppercase tracking-widest">mins</span>
-                        </div>
-                      </td>
+
                       <td className="px-6 py-6">
                         <button 
                           onClick={() => handleDelete(setting._id)}

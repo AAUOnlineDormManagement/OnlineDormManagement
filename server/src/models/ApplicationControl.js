@@ -35,11 +35,6 @@ const applicationControlSchema = new mongoose.Schema(
     closedAt: {
       type: Date
     },
-    waitMinutes: { 
-      type: Number, 
-      default: 3, 
-      min: 0 
-    },
     createdBy: { 
       type: mongoose.Schema.Types.ObjectId, 
       ref: 'User' 
