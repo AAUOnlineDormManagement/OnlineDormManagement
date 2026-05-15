@@ -134,6 +134,7 @@ export default function PlacementRequestSimple() {
   const [timeLeft, setTimeLeft] = useState(null);
   const [isDormOpen, setIsDormOpen] = useState(true);
   const [openedAtDate, setOpenedAtDate] = useState(null);
+  const [closedAtDate, setClosedAtDate] = useState(null);
   const [globalAnnouncement, setGlobalAnnouncement] = useState('');
 
   const [fydaFront, setFydaFront] = useState(null);
@@ -266,8 +267,11 @@ export default function PlacementRequestSimple() {
         } else {
           throw new Error(res?.message || 'Failed to load dashboard');
         }
-        const app = await dormApi.getMyApplication();
-        setExistingApp(app);
+        const appRes = await dormApi.getMyApplication();
+        setExistingApp(appRes?.application || null);
+        if (appRes?.activeWindow?.closedAt) {
+          setClosedAtDate(new Date(appRes.activeWindow.closedAt));
+        }
 
         try {
           const configRes = await dormApi.getConfig();
@@ -852,7 +856,17 @@ export default function PlacementRequestSimple() {
               <span>Addis Ababa University</span>
             </div>
             <h1 className="text-3xl font-bold text-slate-800 mb-2">Room Placement Request</h1>
-            <p className="text-slate-500">Complete the form below to apply for on-campus housing</p>
+            <p className="text-slate-500 mb-4">Complete the form below to apply for on-campus housing</p>
+            
+            {closedAtDate && (
+              <div className="inline-flex items-center gap-3 bg-amber-50 border border-amber-200 rounded-2xl px-4 py-2 text-amber-800 shadow-sm animate-pulse">
+                <FaCalendarAlt className="w-4 h-4 text-amber-500" />
+                <div className="flex flex-col">
+                  <span className="text-[10px] font-black uppercase tracking-wider text-amber-500">Submission Deadline</span>
+                  <span className="text-sm font-bold">Window ends: {closedAtDate.toLocaleString()}</span>
+                </div>
+              </div>
+            )}
           </div>
 
           {/* Profile Summary Card */}
@@ -932,34 +946,7 @@ export default function PlacementRequestSimple() {
                 <p className="text-sm text-slate-500">Track your application status below.</p>
               </div>
 
-              {/* WAITING STATUS — Prominent countdown popup */}
-              {existingApp.status === 'Waiting' && (
-                <div className="text-center space-y-4">
-                  <div className="w-20 h-20 mx-auto bg-blue-100 rounded-full flex items-center justify-center animate-pulse">
-                    <FaCalendarAlt className="w-8 h-8 text-blue-600" />
-                  </div>
-                  <h3 className="text-xl font-black text-blue-900">Please Wait — Room Assignment in Progress</h3>
-                  <p className="text-sm text-blue-700 max-w-md mx-auto">
-                    Based on your FYDA back-side address, your application has a required waiting period before automatic room assignment. 
-                    Once confirmed, you will be notified to <strong>pay the fee</strong> and secure your spot.
-                  </p>
-                  {timeLeft ? (
-                    <div className="inline-flex items-center gap-3 bg-white rounded-2xl px-8 py-4 border-2 border-blue-200 shadow-sm">
-                      <div className="w-3 h-3 bg-blue-500 rounded-full animate-ping" />
-                      <span className="text-3xl font-black text-blue-700 tabular-nums tracking-wider">{timeLeft}</span>
-                      <span className="text-xs font-bold text-blue-500 uppercase">remaining</span>
-                    </div>
-                  ) : (
-                    <div className="inline-flex items-center gap-3 bg-emerald-50 rounded-2xl px-8 py-4 border-2 border-emerald-200">
-                      <FaSpinner className="w-5 h-5 text-emerald-600 animate-spin" />
-                      <span className="text-lg font-black text-emerald-700">Assigning your room now...</span>
-                    </div>
-                  )}
-                  <p className="text-xs text-blue-500 font-medium">
-                    This page will automatically refresh when your room is assigned.
-                  </p>
-                </div>
-              )}
+
 
               {/* ASSIGNED STATUS — Success */}
               {existingApp.status === 'Assigned' && (

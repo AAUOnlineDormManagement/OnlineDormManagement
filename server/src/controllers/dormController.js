@@ -703,8 +703,38 @@ const getMyApplication = async (req, res) => {
       populate: { path: 'user' }
     }).populate('assignedRoom');
 
+    // Find active window for this student to show deadline
+    let activeWindow = null;
+    try {
+      const studentCampus = getCampusForDepartment(student.department);
+      const cityCategory = student.city === 'Addis Ababa' ? 'addis' : (student.city === 'Shegar' ? 'shager' : 'other');
+      const sponsorship = student.sponsorship;
+
+      const windows = await ApplicationControl.find({
+        $or: [{ campus: studentCampus }, { campus: 'Any' }],
+        $or: [{ locationCategory: cityCategory }, { locationCategory: 'all' }],
+        $or: [{ sponsorshipType: sponsorship }, { sponsorshipType: 'Both' }],
+        isOpen: true
+      });
+
+      if (windows.length > 0) {
+        activeWindow = windows.sort((a, b) => {
+          const getScore = (s) => {
+            let score = 0;
+            if (s.campus === 'Any') score += 100;
+            if (s.locationCategory === 'all') score += 10;
+            if (s.sponsorshipType === 'Both') score += 1;
+            return score;
+          };
+          return getScore(a) - getScore(b);
+        })[0];
+      }
+    } catch (err) {
+      console.error('Error finding active window for status:', err.message);
+    }
+
     if (!application) {
-      return res.json({ success: true, application: null, message: 'No application submitted yet' });
+      return res.json({ success: true, application: null, activeWindow, message: 'No application submitted yet' });
     }
 
     const needsAdminApproval = student.isStaffRelated || student.isSpecialNeed;
@@ -786,16 +816,14 @@ const getMyApplication = async (req, res) => {
     }
 
     const appObj = application.toObject();
-    if (application.status === 'Waiting' && application.scheduledReleaseAt) {
-      appObj.remainingMs = Math.max(0, new Date(application.scheduledReleaseAt).getTime() - Date.now());
-    }
 
     return res.json({ 
       success: true, 
       application: appObj, 
+      activeWindow,
       chapaPaymentUrl: application.chapaPaymentUrl || null,
       needsAdminApproval,
-      deploymentVersion: '2026-05-09-v7-AUTO-REDIRECT' 
+      deploymentVersion: '2026-05-15-v1-TIMING-NOTIFY' 
     });
   } catch (err) {
     console.error(err);
