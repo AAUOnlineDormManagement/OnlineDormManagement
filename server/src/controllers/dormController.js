@@ -547,7 +547,7 @@ const submitApplication = async (req, res) => {
           console.log(`🚫 Application blocked: Window CLOSED. Server Time: ${serverNow.toISOString()}, Rule OpenedAt: ${granularSetting.openedAt?.toISOString()}`);
           return res.status(403).json({
             success: false,
-            message: `Dorm applications are currently closed for ${cityCategory.toUpperCase()} - ${sponsorship.toUpperCase()} students on ${studentCampus} campus.${dateMsg} [Server Time: ${serverNow.toLocaleTimeString()}]`
+            message: `Dorm applications are currently closed for ${cityCategory.toUpperCase()} - ${sponsorship.toUpperCase()} students on ${studentCampus} campus.${dateMsg}`
           });
         }
       } else {
