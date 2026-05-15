@@ -1,4 +1,4 @@
-// Deployment Heartbeat: 2026-04-26 01:14:00
+process.env.TZ = 'Africa/Addis_Ababa';
 const express = require('express');
 const mongoose = require('mongoose');
 const cors = require('cors');
