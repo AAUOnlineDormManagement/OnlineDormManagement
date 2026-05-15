@@ -131,6 +131,7 @@ export default function PlacementRequestSimple() {
   const [profile, setProfile] = useState(null);
   const [existingApp, setExistingApp] = useState(null);
   const [submitError, setSubmitError] = useState('');
+  const [closedWindowModal, setClosedWindowModal] = useState({ isOpen: false, message: '' });
   const [timeLeft, setTimeLeft] = useState(null);
   const [isDormOpen, setIsDormOpen] = useState(true);
   const [openedAtDate, setOpenedAtDate] = useState(null);
@@ -681,7 +682,12 @@ export default function PlacementRequestSimple() {
       // FINAL SAFETY CHECK: Force to string before passing to React
       const finalMsg = String(msg).slice(0, 500); 
       setSubmitError(finalMsg);
-      toast.error(finalMsg);
+      
+      if (finalMsg.includes('Dorm applications are currently closed')) {
+        setClosedWindowModal({ isOpen: true, message: finalMsg });
+      } else {
+        toast.error(finalMsg);
+      }
     } finally {
       setSubmitting(false);
     }
@@ -1516,6 +1522,31 @@ export default function PlacementRequestSimple() {
           }}></div>
         </div>
       </div>
+
+      {/* Closed Window Modal */}
+      {closedWindowModal.isOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-sm animate-fade-in">
+          <div className="bg-white rounded-2xl shadow-xl w-full max-w-md overflow-hidden transform transition-all animate-scale-in">
+            <div className="bg-rose-50 p-6 flex flex-col items-center border-b border-rose-100">
+              <div className="w-16 h-16 bg-rose-100 rounded-full flex items-center justify-center mb-4 text-rose-600">
+                <FaCalendarAlt size={32} />
+              </div>
+              <h3 className="text-xl font-bold text-slate-800 text-center">Application Window Closed</h3>
+            </div>
+            <div className="p-6">
+              <p className="text-slate-600 text-center mb-6 leading-relaxed">
+                {closedWindowModal.message}
+              </p>
+              <button
+                onClick={() => setClosedWindowModal({ isOpen: false, message: '' })}
+                className="w-full bg-blue-600 text-white font-semibold py-3 px-4 rounded-xl hover:bg-blue-700 transition-colors duration-200 shadow-sm shadow-blue-200"
+              >
+                Understood
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* 5-minute wait modal removed by policy */}
     </DashboardLayout>
