@@ -506,9 +506,11 @@ const submitApplication = async (req, res) => {
     } else {
       // === Non-freshman: apply normal granular window check ===
       const settings = await ApplicationControl.find({
-        $or: [{ campus: studentCampus }, { campus: 'Any' }],
-        $or: [{ locationCategory: cityCategory }, { locationCategory: 'all' }],
-        $or: [{ sponsorshipType: sponsorship }, { sponsorshipType: 'Both' }]
+        $and: [
+          { $or: [{ campus: studentCampus }, { campus: 'Any' }] },
+          { $or: [{ locationCategory: cityCategory }, { locationCategory: 'all' }] },
+          { $or: [{ sponsorshipType: sponsorship }, { sponsorshipType: 'Both' }] }
+        ]
       });
 
       let granularSetting = null;
