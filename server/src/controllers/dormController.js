@@ -232,12 +232,11 @@ async function findRoomForStudent(student, isSpecialNeed = false) {
       $expr: { $lt: ["$currentOccupants", "$capacity"] }
     };
 
-    // If "Any" is open, we don't need a campus filter. 
-    // Otherwise, filter by campuses that are explicitly open.
-    if (!openCampuses.includes('Any')) {
-      if (openCampuses.length === 0) return { room: null, isOverflow: false, campus: null };
-      freshmanQuery.campus = { $in: openCampuses };
-    }
+    // Freshman flow: ignore campus-specific windows, allow any campus with available rooms
+    // Since any open window suffices, we do not restrict the query by campus.
+    // The freshmanQuery already contains gender, capacity, and occupancy criteria.
+    // No additional campus condition is added here.
+
 
     if (isSpecialNeed) {
       const firstFloors = await Floor.find({ floorNumber: 1 });
