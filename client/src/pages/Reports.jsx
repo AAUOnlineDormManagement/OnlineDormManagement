@@ -518,7 +518,7 @@ export default function Reports() {
           </div>
 
           <div className="h-72">
-            <ResponsiveContainer width="100%" height="100%">
+            <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={0}>
               <LineChart data={trendSeries}>
                 <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" vertical={false} />
                 <XAxis dataKey="date" tick={{ fontSize: 9, fontWeight: 'bold', fill: '#94a3b8' }} tickLine={false} axisLine={false} />
@@ -544,7 +544,7 @@ export default function Reports() {
           </div>
 
           <div className="h-48 relative flex items-center justify-center">
-            <ResponsiveContainer width="100%" height="100%">
+            <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={0}>
               <PieChart>
                 <Pie
                   data={chartsData.genderComposition}
@@ -594,7 +594,7 @@ export default function Reports() {
           </div>
 
           <div className="h-64">
-            <ResponsiveContainer width="100%" height="100%">
+            <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={0}>
               <BarChart data={chartsData.buildingOccupancyData}>
                 <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" vertical={false} />
                 <XAxis dataKey="name" tick={{ fontSize: 9, fontWeight: 'bold', fill: '#94a3b8' }} tickLine={false} axisLine={false} />
