@@ -7,6 +7,7 @@ const Complaint = require('../models/Complaint');
 const MaintenanceRequest = require('../models/MaintenanceRequest');
 const ExitClearance = require('../models/ExitClearance');
 const Log = require('../models/Log');
+const Transaction = require('../models/Transaction');
 
 function startOfDay(d) {
   const x = new Date(d);
@@ -63,6 +64,52 @@ exports.getOverview = async (req, res) => {
 
     const recent = await Log.find({}).sort({ createdAt: -1 }).limit(10);
 
+    // SuperAdmin financial statistics calculation
+    let financialStats = null;
+    let recentTransactionsList = [];
+    if (req.user && req.user.role === 'SuperAdmin') {
+      const txs = await Transaction.find({}).populate({
+        path: 'student',
+        populate: { path: 'user', select: 'name userID' }
+      }).sort({ createdAt: -1 });
+
+      let totalRevenue = 0;
+      let countSuccess = 0;
+      let countPending = 0;
+      let countFailed = 0;
+
+      txs.forEach(tx => {
+        if (tx.status === 'success') {
+          totalRevenue += tx.amount;
+          countSuccess++;
+        } else if (tx.status === 'pending') {
+          countPending++;
+        } else if (tx.status === 'failed') {
+          countFailed++;
+        }
+      });
+
+      financialStats = {
+        totalRevenue,
+        countSuccess,
+        countPending,
+        countFailed,
+        countTotal: txs.length
+      };
+      
+      // limit to recent 10 transactions
+      recentTransactionsList = txs.slice(0, 10).map(t => ({
+        _id: t._id,
+        studentName: t.student?.fullName || t.student?.user?.name || 'Unknown Student',
+        studentID: t.student?.studentID || t.student?.user?.userID || 'N/A',
+        amount: t.amount,
+        currency: t.currency,
+        tx_ref: t.tx_ref,
+        status: t.status,
+        createdAt: t.createdAt
+      }));
+    }
+
     return res.json({
       success: true,
       stats: {
@@ -76,7 +123,9 @@ exports.getOverview = async (req, res) => {
       },
       buildings: buildingRows,
       recentActivity: recent,
-      pendingApplicationsList: pendingList
+      pendingApplicationsList: pendingList,
+      financialStats,
+      recentTransactionsList
     });
   } catch (err) {
     console.error('Admin overview error:', err);
