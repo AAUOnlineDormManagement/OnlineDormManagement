@@ -25,7 +25,9 @@ import {
   FaFile,
   FaQrcode,
   FaTrash,
-  FaCheck
+  FaCheck,
+  FaPaperPlane,
+  FaFileAlt
 } from 'react-icons/fa';
 import logoImg from '../../../assets/logo/logo.png';
 
