@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { FaFileAlt, FaSearch, FaFilter, FaClock, FaCheckCircle, FaSpinner, FaTimesCircle } from 'react-icons/fa';
-import proctorApi from '../../../api/proctorApi';
+import proctorApi from '../../api/proctorApi';
 import toast from 'react-hot-toast';
 
 export default function MyReports() {
@@ -123,7 +123,7 @@ export default function MyReports() {
               </div>
             ))}
           </div>
-      </div>
+        )}
     </div>
   );
 }

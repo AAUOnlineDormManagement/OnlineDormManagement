@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { FaUpload, FaPaperPlane, FaTimes } from 'react-icons/fa';
 import toast from 'react-hot-toast';
-import proctorApi from '../../../api/proctorApi';
+import proctorApi from '../../api/proctorApi';
 
 const reportTypes = [
   'Maintenance Report',

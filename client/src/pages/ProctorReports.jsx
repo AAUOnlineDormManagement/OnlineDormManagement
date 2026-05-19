@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { FaFileAlt, FaSearch, FaFilter, FaCheck, FaTimes, FaSpinner, FaEye, FaDownload } from 'react-icons/fa';
-import adminApi from '../../api/adminApi';
-import DashboardLayout from '../../components/dashboard/Students/DashboardLayout'; // or whatever standard layout they use, but let's just use standard div and let router handle layout like proctor
+import adminApi from '../api/adminApi';
+import DashboardLayout from '../components/dashboard/Students/DashboardLayout'; // or whatever standard layout they use, but let's just use standard div and let router handle layout like proctor
 import toast from 'react-hot-toast';
 
 export default function ProctorReports() {
