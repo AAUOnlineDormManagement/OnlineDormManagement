@@ -365,7 +365,7 @@ export default function SuperAdminHeader() {
       {/* Mobile Navigation (Scrollable) */}
       <div className="lg:hidden bg-slate-50 dark:bg-slate-900 border-t border-slate-200 dark:border-slate-800 overflow-x-auto no-scrollbar">
         <nav className="flex items-center gap-2 p-2 px-4 w-max">
-          {navItems.map((item) => {
+          {[...mainNavItems, ...moreNavItems].map((item) => {
              const Icon = item.icon;
              const isActive = location.pathname.startsWith(item.path) && (item.path !== '/super-admin-dashboard' || location.pathname === '/super-admin-dashboard');
              return (
