@@ -20,8 +20,8 @@ import StudentComplaints from './pages/Proctor/StudentComplaints';
 import StudentList from './pages/Proctor/StudentList';
 import StudentExitClearance from './pages/Proctor/StudentExitClearance';
 import ProctorProfile from './pages/Proctor/ProctorProfile';
-import SubmitReport from './pages/proctor/SubmitReport';
-import MyReports from './pages/proctor/MyReports';
+import SubmitReport from './pages/Proctor/SubmitReport';
+import MyReports from './pages/Proctor/MyReports';
 import ProctorReports from './pages/ProctorReports';
 
 import ProctorSettings from './pages/Proctor/ProctorSettings';
