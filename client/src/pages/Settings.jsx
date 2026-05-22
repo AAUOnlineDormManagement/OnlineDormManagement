@@ -18,6 +18,7 @@ import toast from 'react-hot-toast';
 import { useTheme } from '../context/ThemeContext';
 import authApi from '../api/authApi';
 import FaceScannerModal from '../components/auth/FaceScannerModal';
+import ProfilePictureUpload from '../components/common/ProfilePictureUpload';
 
 export default function Settings() {
   const [activeTab, setActiveTab] = useState('notifications');
@@ -31,6 +32,8 @@ export default function Settings() {
   const [faceRegisteredAt, setFaceRegisteredAt] = useState(null);
   const [faceLoading, setFaceLoading] = useState(false);
   const [fetchingBiometrics, setFetchingBiometrics] = useState(false);
+  const [profilePictureUrl, setProfilePictureUrl] = useState(null);
+  const [rawProfilePicture, setRawProfilePicture] = useState(null);
 
   // Fetch biometrics status on mount
   useEffect(() => {
@@ -42,6 +45,14 @@ export default function Settings() {
           const hasFace = response.user.faceDescriptor && response.user.faceDescriptor.length === 128;
           setFaceRegistered(!!hasFace);
           setFaceRegisteredAt(response.user.faceRegisteredAt ? new Date(response.user.faceRegisteredAt).toLocaleString() : null);
+          
+          if (response.user.profilePicture) {
+            setRawProfilePicture(response.user.profilePicture);
+            import('../utils/apiConfig').then(({ getUploadBaseUrl }) => {
+              const fullUrl = `${getUploadBaseUrl()}/${response.user.profilePicture.replace(/^\//, '')}`;
+              setProfilePictureUrl(fullUrl);
+            });
+          }
         }
       } catch (err) {
         console.error('Failed to load face biometric status', err);
@@ -268,6 +279,26 @@ export default function Settings() {
                         </div>
                      </div>
 
+                     <div className="p-6 bg-white rounded-3xl border border-slate-100 flex flex-col sm:flex-row items-center gap-6 shadow-sm">
+                        <ProfilePictureUpload 
+                          currentImage={rawProfilePicture}
+                          size="medium"
+                          onUploadSuccess={(newPath) => {
+                            setRawProfilePicture(newPath);
+                            import('../utils/apiConfig').then(({ getUploadBaseUrl }) => {
+                              const fullUrl = `${getUploadBaseUrl()}/${newPath.replace(/^\//, '')}`;
+                              setProfilePictureUrl(fullUrl);
+                            });
+                          }}
+                        />
+                        <div>
+                           <p className="text-sm font-black text-slate-900 mb-1">Profile Photo Required</p>
+                           <p className="text-xs text-slate-500 font-bold leading-relaxed uppercase tracking-tight max-w-sm">
+                              You must upload a clear photo of your face before registering biometrics. The AI will match your camera feed against this photo.
+                           </p>
+                        </div>
+                     </div>
+
                      <div className="p-6 bg-white rounded-3xl border border-slate-100 flex flex-col md:flex-row items-start md:items-center justify-between gap-6 shadow-sm">
                         <div className="space-y-1">
                            <span className="text-xs font-black text-slate-400 uppercase tracking-widest">Biometric Status</span>
@@ -332,6 +363,7 @@ export default function Settings() {
                        onClose={() => setShowFaceScanner(false)}
                        onScanComplete={handleRegisterFace}
                        title="Register Face Biometrics"
+                       profilePictureUrl={profilePictureUrl}
                      />
                   </div>
                 )}
