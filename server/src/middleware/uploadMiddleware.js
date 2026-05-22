@@ -1,9 +1,10 @@
 const multer = require('multer');
 const path = require('path');
 const fs = require('fs');
+const { isConfigured: isCloudinaryConfigured } = require('../config/cloudinary');
 
-// Check if we should use cloud storage (Vercel or Cloudinary configured)
-const useCloudStorage = !!(process.env.VERCEL || process.env.CLOUDINARY_CLOUD_NAME);
+// Use cloud storage only when Cloudinary credentials are configured.
+const useCloudStorage = isCloudinaryConfigured;
 
 // ── Disk storage (local development without Cloudinary) ──────────────────────
 let storage;

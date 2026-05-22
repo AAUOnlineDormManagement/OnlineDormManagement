@@ -7,9 +7,14 @@ import { getUploadBaseUrl } from './apiConfig';
  */
 export function uploadUrl(storedPath) {
   if (!storedPath) return null;
-  
+
+  const value = String(storedPath).trim();
+  if (!value || value.toLowerCase() === 'undefined' || value.toLowerCase() === '/undefined' || value.toLowerCase().includes('/undefined')) {
+    return null;
+  }
+
   // Normalize slashes
-  let p = String(storedPath).replace(/\\/g, '/');
+  let p = value.replace(/\\/g, '/');
   
   // Rule 1: If it's a Vercel /tmp path, we map it to /uploads/filename
   // (Because we have express.static('/tmp') mapped to '/uploads' on the server)

@@ -3,6 +3,7 @@ const Student = require('../models/Student');
 const Proctor = require('../models/Proctor');
 const jwt = require('jsonwebtoken');
 const bcrypt = require('bcryptjs');
+const { isConfigured: isCloudinaryConfigured, uploadToCloudinary, deleteFromCloudinary, getPublicIdFromUrl } = require('../config/cloudinary');
 
 function escapeRegex(s) {
   return String(s).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
@@ -305,18 +306,39 @@ const updateProfilePicture = async (req, res) => {
     if (user.profilePicture) {
       const fs = require('fs');
       const path = require('path');
-      const oldPath = path.join(process.cwd(), user.profilePicture);
-      if (fs.existsSync(oldPath)) {
-        try {
-          fs.unlinkSync(oldPath);
-        } catch (e) {
-          console.error('Error deleting old profile pic:', e);
+
+      if (user.profilePicture.startsWith('http')) {
+        const publicId = getPublicIdFromUrl(user.profilePicture);
+        if (publicId) {
+          await deleteFromCloudinary(publicId);
+        }
+      } else {
+        const oldPath = path.join(process.cwd(), user.profilePicture);
+        if (fs.existsSync(oldPath)) {
+          try {
+            fs.unlinkSync(oldPath);
+          } catch (e) {
+            console.error('Error deleting old profile pic:', e);
+          }
         }
       }
     }
 
-    // Modern path format for static serving
-    const filePath = `uploads/profiles/${req.file.filename}`;
+    let filePath;
+    if (isCloudinaryConfigured && req.file?.buffer) {
+      const result = await uploadToCloudinary(req.file.buffer, {
+        folder: 'dorm-profiles',
+        public_id: `profile-${Date.now()}-${Math.round(Math.random() * 1e9)}`
+      });
+      filePath = result.secure_url;
+    } else if (req.file?.filename) {
+      // Local disk storage path
+      filePath = `uploads/profiles/${req.file.filename}`;
+    } else {
+      console.error('Invalid profile picture upload request', req.file);
+      return res.status(400).json({ success: false, message: 'Invalid file upload' });
+    }
+
     user.profilePicture = filePath;
     await user.save();
 
