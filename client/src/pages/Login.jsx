@@ -188,6 +188,8 @@ export default function Login() {
 
         setShowUgrPrompt(false);
         setShowFaceScanner(true);
+      } else {
+        setPromptError(response.message || 'User not found. Please check your User ID.');
       }
     } catch (err) {
       console.error(err);
