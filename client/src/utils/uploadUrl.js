@@ -7,7 +7,11 @@ import { getUploadBaseUrl } from './apiConfig';
  */
 export function uploadUrl(storedPath) {
   if (!storedPath) return null;
-  
+
+  // Cloudinary or other full URLs — use directly
+  if (storedPath.startsWith('http://') || storedPath.startsWith('https://')) {
+    return storedPath;
+  }
   // Normalize slashes
   let p = String(storedPath).replace(/\\/g, '/');
   
