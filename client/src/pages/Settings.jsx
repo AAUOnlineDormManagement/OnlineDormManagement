@@ -1,5 +1,5 @@
 import DashboardLayout from '../components/dashboard/Students/DashboardLayout';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { 
   FaBell, 
   FaMoon, 
@@ -28,7 +28,75 @@ export default function Settings() {
   // Face recognition state
   const [showFaceScanner, setShowFaceScanner] = useState(false);
   const [faceRegistered, setFaceRegistered] = useState(false);
+  const [faceRegisteredAt, setFaceRegisteredAt] = useState(null);
   const [faceLoading, setFaceLoading] = useState(false);
+  const [fetchingBiometrics, setFetchingBiometrics] = useState(false);
+
+  // Fetch biometrics status on mount
+  useEffect(() => {
+    const checkBiometrics = async () => {
+      setFetchingBiometrics(true);
+      try {
+        const response = await authApi.getMe();
+        if (response.success && response.user) {
+          const hasFace = response.user.faceDescriptor && response.user.faceDescriptor.length === 128;
+          setFaceRegistered(!!hasFace);
+          setFaceRegisteredAt(response.user.faceRegisteredAt ? new Date(response.user.faceRegisteredAt).toLocaleString() : null);
+        }
+      } catch (err) {
+        console.error('Failed to load face biometric status', err);
+      } finally {
+        setFetchingBiometrics(false);
+      }
+    };
+    checkBiometrics();
+  }, []);
+
+  const handleRegisterFace = async (descriptor) => {
+    setFaceLoading(true);
+    try {
+      const response = await authApi.registerFace(descriptor);
+      if (response.success) {
+        setFaceRegistered(true);
+        setFaceRegisteredAt(response.registeredAt ? new Date(response.registeredAt).toLocaleString() : new Date().toLocaleString());
+        toast.success('Face profile registered successfully!', {
+          style: { borderRadius: '1rem', background: '#0f172a', color: '#fff' }
+        });
+      }
+    } catch (err) {
+      const msg = err.response?.data?.message || err.message || 'Failed to register face biometrics';
+      toast.error(msg, {
+        style: { borderRadius: '1rem', background: '#0f172a', color: '#fff' }
+      });
+    } finally {
+      setFaceLoading(false);
+      setShowFaceScanner(false);
+    }
+  };
+
+  const handleRemoveFace = async () => {
+    if (!window.confirm('Are you sure you want to remove your face recognition profile? You will no longer be able to log in with face recognition.')) {
+      return;
+    }
+    setFaceLoading(true);
+    try {
+      const response = await authApi.removeFace();
+      if (response.success) {
+        setFaceRegistered(false);
+        setFaceRegisteredAt(null);
+        toast.success('Face profile removed successfully.', {
+          style: { borderRadius: '1rem', background: '#0f172a', color: '#fff' }
+        });
+      }
+    } catch (err) {
+      const msg = err.response?.data?.message || err.message || 'Failed to remove face biometrics';
+      toast.error(msg, {
+        style: { borderRadius: '1rem', background: '#0f172a', color: '#fff' }
+      });
+    } finally {
+      setFaceLoading(false);
+    }
+  };
 
   const handleSave = () => {
     setSaving(true);
@@ -185,6 +253,86 @@ export default function Settings() {
                            </div>
                         </div>
                      </div>
+                  </div>
+                )}
+
+                {activeTab === 'biometrics' && (
+                  <div className="space-y-6 animate-in slide-in-from-bottom-2 duration-300">
+                     <div className="bg-slate-50 border border-slate-100 p-6 rounded-3xl flex gap-4">
+                        <MdFace className="text-slate-700 text-3xl shrink-0" />
+                        <div>
+                           <p className="text-sm font-black text-slate-900 mb-1">Face Recognition Authentication</p>
+                           <p className="text-xs text-slate-500 font-bold leading-relaxed uppercase tracking-tight">
+                              Register a facial template to log in securely without entering your password. Your biometrics data is stored locally as an anonymous mathematical vector and compared securely server-side.
+                           </p>
+                        </div>
+                     </div>
+
+                     <div className="p-6 bg-white rounded-3xl border border-slate-100 flex flex-col md:flex-row items-start md:items-center justify-between gap-6 shadow-sm">
+                        <div className="space-y-1">
+                           <span className="text-xs font-black text-slate-400 uppercase tracking-widest">Biometric Status</span>
+                           {fetchingBiometrics ? (
+                             <div className="flex items-center gap-2 text-slate-400 text-xs font-black">
+                               <div className="w-3.5 h-3.5 border-2 border-slate-300 border-t-slate-600 rounded-full animate-spin" />
+                               <span>Checking registration...</span>
+                             </div>
+                           ) : faceRegistered ? (
+                             <div className="space-y-1">
+                               <div className="flex items-center gap-1.5">
+                                 <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[10px] font-black tracking-wider bg-emerald-50 text-emerald-700 uppercase">
+                                   <FaCheckCircle className="w-3 h-3" /> Registered
+                                 </span>
+                               </div>
+                               {faceRegisteredAt && (
+                                 <p className="text-[10px] text-slate-400 font-bold uppercase tracking-tight">Registered on: {faceRegisteredAt}</p>
+                               )}
+                             </div>
+                           ) : (
+                             <div>
+                               <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[10px] font-black tracking-wider bg-slate-100 text-slate-600 uppercase">
+                                 Not Setup
+                               </span>
+                             </div>
+                           )}
+                        </div>
+
+                        <div className="flex flex-wrap gap-3">
+                           {faceRegistered ? (
+                             <button
+                               onClick={handleRemoveFace}
+                               disabled={faceLoading}
+                               className="px-6 py-3 bg-red-50 hover:bg-red-100 text-red-600 rounded-2xl font-black text-[10px] uppercase tracking-widest transition-all flex items-center gap-2 border border-red-100/50 disabled:opacity-50"
+                             >
+                               {faceLoading ? (
+                                 <div className="w-3 h-3 border-2 border-red-600/30 border-t-red-600 rounded-full animate-spin" />
+                               ) : (
+                                 <FaTrash />
+                               )}
+                               Delete Biometrics
+                             </button>
+                           ) : null}
+
+                           <button
+                             onClick={() => setShowFaceScanner(true)}
+                             disabled={faceLoading || fetchingBiometrics}
+                             className="px-6 py-3 bg-slate-900 hover:bg-black text-white rounded-2xl font-black text-[10px] uppercase tracking-widest transition-all flex items-center gap-2 shadow-xl shadow-slate-200/50 disabled:opacity-50"
+                           >
+                             {faceLoading ? (
+                               <div className="w-3 h-3 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                             ) : (
+                               <MdFace className="w-4 h-4" />
+                             )}
+                             {faceRegistered ? 'Re-register Face' : 'Register Face Scan'}
+                           </button>
+                        </div>
+                     </div>
+
+                     <FaceScannerModal
+                       isOpen={showFaceScanner}
+                       onClose={() => setShowFaceScanner(false)}
+                       onScanComplete={handleRegisterFace}
+                       title="Register Face Biometrics"
+                     />
                   </div>
                 )}
 
