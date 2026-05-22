@@ -43,10 +43,7 @@ const ProfilePictureUpload = ({ currentImage, onUploadSuccess, size = 'large' })
   };
 
   const API_BASE = getUploadBaseUrl();
-  // Cloudinary URLs are already full https:// URLs — use directly
-  const imageUrl = currentImage
-    ? (currentImage.startsWith('http') ? currentImage : `${API_BASE}/${currentImage}`)
-    : null;
+  const imageUrl = currentImage ? `${API_BASE}/${currentImage}` : null;
 
   const sizeClasses = {
     small: 'w-12 h-12 text-sm',

@@ -3,7 +3,6 @@ const Student = require('../models/Student');
 const Proctor = require('../models/Proctor');
 const jwt = require('jsonwebtoken');
 const bcrypt = require('bcryptjs');
-const { isConfigured: cloudinaryConfigured, uploadToCloudinary, deleteFromCloudinary, getPublicIdFromUrl } = require('../config/cloudinary');
 
 function escapeRegex(s) {
   return String(s).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
@@ -302,40 +301,22 @@ const updateProfilePicture = async (req, res) => {
       return res.status(404).json({ success: false, message: 'User not found' });
     }
 
-    let filePath;
-
-    if (cloudinaryConfigured) {
-      // ── Cloud upload (Vercel / production) ──────────────────────────────
-      // Delete old Cloudinary image if exists
-      if (user.profilePicture && user.profilePicture.includes('cloudinary.com')) {
-        const oldPublicId = getPublicIdFromUrl(user.profilePicture);
-        await deleteFromCloudinary(oldPublicId);
-      }
-
-      const result = await uploadToCloudinary(req.file.buffer, {
-        folder: 'dorm-profiles',
-        public_id: `user-${user._id}-${Date.now()}`,
-      });
-      filePath = result.secure_url; // Full HTTPS URL
-      console.log('☁️  Uploaded to Cloudinary:', filePath);
-    } else {
-      // ── Local disk upload (development) ─────────────────────────────────
-      // Delete old local picture if exists
-      if (user.profilePicture && !user.profilePicture.startsWith('http')) {
-        const fs = require('fs');
-        const path = require('path');
-        const oldPath = path.join(process.cwd(), user.profilePicture);
-        if (fs.existsSync(oldPath)) {
-          try {
-            fs.unlinkSync(oldPath);
-          } catch (e) {
-            console.error('Error deleting old profile pic:', e);
-          }
+    // Delete old picture if exists
+    if (user.profilePicture) {
+      const fs = require('fs');
+      const path = require('path');
+      const oldPath = path.join(process.cwd(), user.profilePicture);
+      if (fs.existsSync(oldPath)) {
+        try {
+          fs.unlinkSync(oldPath);
+        } catch (e) {
+          console.error('Error deleting old profile pic:', e);
         }
       }
-      filePath = `uploads/profiles/${req.file.filename}`;
     }
 
+    // Modern path format for static serving
+    const filePath = `uploads/profiles/${req.file.filename}`;
     user.profilePicture = filePath;
     await user.save();
 
