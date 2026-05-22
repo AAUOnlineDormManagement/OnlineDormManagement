@@ -43,9 +43,7 @@ const ProfilePictureUpload = ({ currentImage, onUploadSuccess, size = 'large' })
   };
 
   const API_BASE = getUploadBaseUrl();
-  const imageUrl = currentImage 
-    ? (currentImage.startsWith('data:image') ? currentImage : `${API_BASE}/${currentImage.replace(/^\//, '')}`)
-    : null;
+  const imageUrl = currentImage ? `${API_BASE}/${currentImage}` : null;
 
   const sizeClasses = {
     small: 'w-12 h-12 text-sm',
