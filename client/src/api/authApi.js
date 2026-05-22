@@ -192,7 +192,7 @@ const authApi = {
   /** Get profile picture and face status by user ID / UGR */
   getProfilePicture: async (userId) => {
     try {
-      const response = await api.get(`/auth/profile-picture/${encodeURIComponent(userId)}`);
+      const response = await api.get('/auth/profile-picture', { params: { userId } });
       return response.data;
     } catch (error) {
       console.error('❌ Failed to get profile picture:', error);

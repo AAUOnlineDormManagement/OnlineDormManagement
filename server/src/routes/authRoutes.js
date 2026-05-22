@@ -22,7 +22,7 @@ router.post('/profile-picture', protect, upload.single('profilePicture'), update
 router.put('/profile-update', protect, updateProfile);
 
 // ── Face Recognition ──────────────────────────────────────────────────────────
-router.get('/profile-picture/:userId', getProfilePicture); // Fetch profile picture and biometric status (public)
+router.get('/profile-picture', getProfilePicture); // Fetch profile picture and biometric status (public)
 router.post('/register-face', protect, registerFace);   // Save face descriptor (authenticated)
 router.post('/face-login', faceLogin);                  // Face-based login (public)
 router.delete('/remove-face', protect, removeFace);     // Remove face data (authenticated)

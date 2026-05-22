@@ -565,7 +565,7 @@ const removeFace = async (req, res) => {
  */
 const getProfilePicture = async (req, res) => {
   try {
-    const { userId } = req.params;
+    const userId = req.query.userId || req.params.userId;
     if (!userId) {
       return res.status(400).json({ success: false, message: 'User ID is required' });
     }
