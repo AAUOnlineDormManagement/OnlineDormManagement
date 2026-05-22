@@ -109,7 +109,15 @@ if (!cached) {
 
 // On Vercel/production, never fall back to localhost — it will always fail and surface as 500s.
 // Require an explicit connection string via env vars.
-const MONGODB_URI = process.env.MONGODB_URI || process.env.MONGO_URI;
+const rawMongoUri = process.env.MONGODB_URI || process.env.MONGO_URI || process.env.DATABASE_URL;
+const MONGODB_URI_SOURCE = process.env.MONGODB_URI
+  ? 'MONGODB_URI'
+  : process.env.MONGO_URI
+  ? 'MONGO_URI'
+  : process.env.DATABASE_URL
+  ? 'DATABASE_URL'
+  : 'NONE';
+const MONGODB_URI = rawMongoUri && /^\$\{.+\}$/.test(rawMongoUri.trim()) ? '' : rawMongoUri;
 const MONGODB_DB_NAME = (process.env.MONGODB_DB_NAME || 'dormitory_db').trim();
 
 async function connectDB() {
@@ -118,12 +126,13 @@ async function connectDB() {
   }
 
   if (!MONGODB_URI) {
-    const err = new Error('Missing MONGODB_URI/MONGO_URI environment variable');
+    const err = new Error(`Missing MongoDB connection string environment variable. Checked: MONGODB_URI, MONGO_URI, DATABASE_URL`);
     err.code = 'MISSING_MONGODB_URI';
     throw err;
   }
 
   if (!cached.promise) {
+    console.log('🔌 Using MongoDB URI from:', MONGODB_URI_SOURCE);
     const opts = {
       serverSelectionTimeoutMS: 15000,
       socketTimeoutMS: 45000,
@@ -184,12 +193,20 @@ app.get('/api/health', (req, res) => {
 app.get('/api/debug-db', async (req, res) => {
   try {
     const mongoose = require('mongoose');
-    // Prefer MONGODB_URI. Ignore placeholder values like "${MONGODB_URI}".
-    const rawUri = process.env.MONGODB_URI || process.env.MONGO_URI;
+    // Prefer MONGODB_URI, then MONGO_URI, then DATABASE_URL.
+    const rawUri = process.env.MONGODB_URI || process.env.MONGO_URI || process.env.DATABASE_URL;
+    const source = process.env.MONGODB_URI
+      ? 'MONGODB_URI'
+      : process.env.MONGO_URI
+      ? 'MONGO_URI'
+      : process.env.DATABASE_URL
+      ? 'DATABASE_URL'
+      : 'NONE';
     const uri = rawUri && /^\$\{.+\}$/.test(String(rawUri).trim()) ? '' : rawUri;
     res.json({
       status: 'Diagnostic Info',
       envFound: !!uri,
+      uriSource: source,
       uriProvided: uri ? `${uri.substring(0, 15)}...` : 'Not Found',
       targetDbName: MONGODB_DB_NAME,
       readyState: mongoose.connection.readyState, // 0 = disc, 1 = conn, 2 = conn-ing
