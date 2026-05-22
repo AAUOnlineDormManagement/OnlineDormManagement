@@ -40,3 +40,5 @@ client/src/assets/receipts/
 # Scratch / Temp
 server/scratch/
 temp/
+
+.vercel

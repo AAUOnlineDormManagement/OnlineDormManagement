@@ -164,6 +164,62 @@ const authApi = {
       console.error('Profile update failed:', error);
       throw error.response?.data || error;
     }
+  },
+
+  // ── Face Recognition ────────────────────────────────────────────────────────
+
+  /** Login using a face descriptor array (128 floats from face-api.js) */
+  faceLogin: async (descriptor) => {
+    try {
+      const response = await api.post('/auth/face-login', { descriptor });
+      if (response.data.token) {
+        localStorage.setItem('token', response.data.token);
+        localStorage.setItem('user', JSON.stringify(response.data.user || {
+          userId: response.data.userId,
+          name: response.data.name,
+          role: response.data.role
+        }));
+        api.defaults.headers.common['Authorization'] = `Bearer ${response.data.token}`;
+      }
+      return response.data;
+    } catch (error) {
+      const serverMsg = error.response?.data?.message || error.message;
+      console.error('❌ Face login failed:', serverMsg);
+      throw error;
+    }
+  },
+
+  /** Register the current user's face — must be authenticated first */
+  registerFace: async (descriptor) => {
+    try {
+      const response = await api.post('/auth/register-face', { descriptor });
+      return response.data;
+    } catch (error) {
+      console.error('Face registration failed:', error);
+      throw error.response?.data || error;
+    }
+  },
+
+  /** Remove the current user's stored face descriptor */
+  removeFace: async () => {
+    try {
+      const response = await api.delete('/auth/remove-face');
+      return response.data;
+    } catch (error) {
+      console.error('Face removal failed:', error);
+      throw error.response?.data || error;
+    }
+  },
+
+  /** Get the current user profile from /auth/me */
+  getMe: async () => {
+    try {
+      const response = await api.get('/auth/me');
+      return response.data;
+    } catch (error) {
+      console.error('Fetching current user profile failed:', error);
+      throw error.response?.data || error;
+    }
   }
 };
 

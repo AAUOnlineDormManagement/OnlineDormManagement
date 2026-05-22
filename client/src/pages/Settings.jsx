@@ -10,16 +10,25 @@ import {
   FaCheckCircle,
   FaPalette,
   FaCog,
-  FaSearch
+  FaSearch,
+  FaTrash
 } from 'react-icons/fa';
+import { MdFace } from 'react-icons/md';
 import toast from 'react-hot-toast';
 import { useTheme } from '../context/ThemeContext';
+import authApi from '../api/authApi';
+import FaceScannerModal from '../components/auth/FaceScannerModal';
 
 export default function Settings() {
   const [activeTab, setActiveTab] = useState('notifications');
   const { theme, toggleTheme, highContrast, toggleHighContrast } = useTheme();
   const darkMode = theme === 'dark';
   const [saving, setSaving] = useState(false);
+
+  // Face recognition state
+  const [showFaceScanner, setShowFaceScanner] = useState(false);
+  const [faceRegistered, setFaceRegistered] = useState(false);
+  const [faceLoading, setFaceLoading] = useState(false);
 
   const handleSave = () => {
     setSaving(true);
@@ -33,6 +42,7 @@ export default function Settings() {
 
   const tabs = [
     { id: 'notifications', label: 'Notifications', icon: FaBell, desc: 'Email and SMS alerts' },
+    { id: 'biometrics', label: 'Security & Biometrics', icon: MdFace, desc: 'Face recognition setup' },
     { id: 'privacy', label: 'Privacy & Data', icon: FaShieldAlt, desc: 'Dorm record visibility' },
     { id: 'appearance', label: 'Appearance', icon: FaPalette, desc: 'Themes and accessibility' },
     { id: 'region', label: 'Region & Time', icon: FaGlobeAfrica, desc: 'Language and format' }

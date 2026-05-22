@@ -25,7 +25,9 @@ const userSchema = new mongoose.Schema({
   campus: { type: String, default: 'Main Campus' },
   phone: { type: String },
   profilePicture: { type: String },
-  isFirstLogin: { type: Boolean, default: true }
+  isFirstLogin: { type: Boolean, default: true },
+  faceDescriptor: { type: [Number], default: null },  // 128-float face embedding
+  faceRegisteredAt: { type: Date, default: null }
 });
 
 // Hash plain-text passwords only (avoids double-hashing if value is already a bcrypt hash)

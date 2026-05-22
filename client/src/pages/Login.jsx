@@ -14,10 +14,11 @@ import {
   FaRegClock,
   FaHome
 } from 'react-icons/fa';
-import { MdAdminPanelSettings, MdPrivacyTip, MdOutlineSecurity } from 'react-icons/md';
+import { MdAdminPanelSettings, MdPrivacyTip, MdOutlineSecurity, MdFace } from 'react-icons/md';
 import { FaFileContract } from 'react-icons/fa';
 import authApi from '../api/authApi';
 import logoImg from '../assets/logo/logo.png';
+import FaceScannerModal from '../components/auth/FaceScannerModal';
 
 export default function Login() {
   const navigate = useNavigate();
@@ -25,6 +26,8 @@ export default function Login() {
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
+  const [showFaceScanner, setShowFaceScanner] = useState(false);
+  const [faceLoading, setFaceLoading] = useState(false);
 
   const handleInputChange = (e) => {
     const { name, value } = e.target;
@@ -133,6 +136,40 @@ export default function Login() {
       setError(errorMessage);
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  // ── Face Recognition Login ──────────────────────────────────────────────────
+  const handleFaceScanComplete = async (descriptor) => {
+    setShowFaceScanner(false);
+    setFaceLoading(true);
+    setError('');
+    try {
+      const response = await authApi.faceLogin(descriptor);
+      const role = response.role || '';
+
+      const searchParams = new URLSearchParams(window.location.search);
+      const customRedirect = searchParams.get('redirect');
+      let redirectPath = customRedirect || '/';
+
+      if (!customRedirect) {
+        switch (role) {
+          case 'Student': redirectPath = '/student-portal'; break;
+          case 'Proctor': redirectPath = '/proctor/dashboard'; break;
+          case 'CampusAdmin': redirectPath = '/dashboard'; break;
+          case 'SuperAdmin': redirectPath = '/super-admin-dashboard'; break;
+          case 'EventPoster': redirectPath = '/events-post'; break;
+          case 'Vendor': redirectPath = '/vendor-dashboard'; break;
+          case 'MarketPlaceModerator': redirectPath = '/marketplace-post'; break;
+          default: redirectPath = '/'; break;
+        }
+      }
+      window.location.href = redirectPath;
+    } catch (err) {
+      const serverMsg = err.response?.data?.message || err.message || 'Face not recognized. Please try again or use password.';
+      setError(serverMsg);
+    } finally {
+      setFaceLoading(false);
     }
   };
 
@@ -335,7 +372,7 @@ export default function Login() {
                 {/* Submit Button */}
                 <button
                   type="submit"
-                  disabled={isLoading}
+                  disabled={isLoading || faceLoading}
                   className="w-full bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white font-semibold py-3.5 px-4 rounded-xl flex items-center justify-center gap-2 transition-all duration-200 shadow-lg shadow-blue-200 hover:shadow-xl hover:-translate-y-0.5 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:translate-y-0"
                 >
                   {isLoading ? (
@@ -351,6 +388,33 @@ export default function Login() {
                   )}
                 </button>
 
+                {/* Divider */}
+                <div className="relative flex items-center gap-4">
+                  <div className="flex-1 h-px bg-slate-200"></div>
+                  <span className="text-xs text-slate-400 font-medium">or</span>
+                  <div className="flex-1 h-px bg-slate-200"></div>
+                </div>
+
+                {/* Face Recognition Login Button */}
+                <button
+                  type="button"
+                  onClick={() => setShowFaceScanner(true)}
+                  disabled={isLoading || faceLoading}
+                  className="w-full bg-gradient-to-r from-slate-800 to-slate-900 hover:from-slate-900 hover:to-black text-white font-semibold py-3.5 px-4 rounded-xl flex items-center justify-center gap-3 transition-all duration-200 shadow-lg shadow-slate-300 hover:shadow-xl hover:-translate-y-0.5 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:translate-y-0"
+                >
+                  {faceLoading ? (
+                    <>
+                      <span className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                      <span>Verifying face...</span>
+                    </>
+                  ) : (
+                    <>
+                      <MdFace className="w-5 h-5" />
+                      <span>Login with Face Recognition</span>
+                    </>
+                  )}
+                </button>
+
                 {/* Help Text */}
                 <p className="text-center text-xs text-slate-400">
                   By signing in, you agree to our{' '}
@@ -359,6 +423,14 @@ export default function Login() {
                   <Link to="/privacy" className="text-blue-600 hover:underline">Privacy Policy</Link>
                 </p>
               </form>
+
+              {/* Face Scanner Modal */}
+              <FaceScannerModal
+                isOpen={showFaceScanner}
+                onClose={() => setShowFaceScanner(false)}
+                onScanComplete={handleFaceScanComplete}
+                title="Face Recognition Login"
+              />
             </div>
 
             {/* Mobile Help Text */}

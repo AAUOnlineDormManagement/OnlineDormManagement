@@ -331,10 +331,190 @@ const updateProfilePicture = async (req, res) => {
   }
 };
 
+// ─── Face Recognition ────────────────────────────────────────────────────────
+
+/**
+ * Euclidean distance between two 128-float descriptor arrays.
+ */
+function euclideanDistance(a, b) {
+  if (!a || !b || a.length !== b.length) return Infinity;
+  let sum = 0;
+  for (let i = 0; i < a.length; i++) {
+    const diff = a[i] - b[i];
+    sum += diff * diff;
+  }
+  return Math.sqrt(sum);
+}
+
+/**
+ * POST /auth/register-face  (protected)
+ * Body: { descriptor: number[] }  — 128-element float array from face-api.js
+ */
+const registerFace = async (req, res) => {
+  try {
+    const { descriptor } = req.body;
+
+    if (!Array.isArray(descriptor) || descriptor.length !== 128) {
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid face descriptor. Expected a 128-element float array.'
+      });
+    }
+
+    const user = await User.findById(req.user._id);
+    if (!user) {
+      return res.status(404).json({ success: false, message: 'User not found' });
+    }
+
+    user.faceDescriptor = descriptor;
+    user.faceRegisteredAt = new Date();
+    await user.save();
+
+    console.log(`✅ Face registered for user: ${user.userID}`);
+    return res.json({
+      success: true,
+      message: 'Face registered successfully',
+      registeredAt: user.faceRegisteredAt
+    });
+  } catch (err) {
+    console.error('❌ registerFace error:', err);
+    return res.status(500).json({ success: false, message: 'Server error during face registration' });
+  }
+};
+
+/**
+ * POST /auth/face-login  (public)
+ * Body: { descriptor: number[] }
+ * Finds best match among all users with a stored face descriptor.
+ * Uses Euclidean distance threshold of 0.6 (standard for face-api.js).
+ */
+const faceLogin = async (req, res) => {
+  try {
+    const { descriptor } = req.body;
+
+    if (!Array.isArray(descriptor) || descriptor.length !== 128) {
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid face descriptor. Expected a 128-element float array.'
+      });
+    }
+
+    // Fetch all users that have a registered face (only pull descriptor + auth fields)
+    const users = await User.find(
+      { faceDescriptor: { $exists: true, $ne: null, $not: { $size: 0 } } }
+    ).select('userID name email role campus isFirstLogin assignedBuilding faceDescriptor');
+
+    if (!users.length) {
+      return res.status(401).json({
+        success: false,
+        message: 'No faces are registered in the system yet.'
+      });
+    }
+
+    // Find the closest match
+    const THRESHOLD = 0.6;
+    let bestMatch = null;
+    let bestDistance = Infinity;
+
+    for (const u of users) {
+      const dist = euclideanDistance(descriptor, u.faceDescriptor);
+      if (dist < bestDistance) {
+        bestDistance = dist;
+        bestMatch = u;
+      }
+    }
+
+    console.log(`🔍 Face login — best distance: ${bestDistance.toFixed(4)}, threshold: ${THRESHOLD}`);
+
+    if (!bestMatch || bestDistance > THRESHOLD) {
+      return res.status(401).json({
+        success: false,
+        message: 'Face not recognized. Please try again or use your password.'
+      });
+    }
+
+    // Issue JWT — same payload as password login
+    const token = jwt.sign(
+      {
+        id: bestMatch._id.toString(),
+        userID: bestMatch.userID,
+        role: bestMatch.role,
+        name: bestMatch.name
+      },
+      process.env.JWT_SECRET || 'dormproject2026secret',
+      { expiresIn: '30d' }
+    );
+
+    // Fetch related student/proctor data
+    let student = null;
+    let proctor = null;
+    if (['Student', 'EventPoster', 'Vendor'].includes(bestMatch.role)) {
+      student = await Student.findOne({ user: bestMatch._id }).select('-__v');
+    } else if (bestMatch.role === 'Proctor') {
+      proctor = await Proctor.findOne({ user: bestMatch._id }).populate('assignedBuilding').select('-__v');
+    }
+
+    console.log(`✅ Face login success: ${bestMatch.userID} (distance: ${bestDistance.toFixed(4)})`);
+
+    return res.json({
+      success: true,
+      message: 'Face login successful',
+      token,
+      role: bestMatch.role,
+      userID: bestMatch.userID,
+      userId: bestMatch.userID,
+      name: bestMatch.name,
+      isFirstLogin: bestMatch.isFirstLogin,
+      user: {
+        id: bestMatch._id,
+        userID: bestMatch.userID,
+        userId: bestMatch.userID,
+        name: bestMatch.name,
+        email: bestMatch.email,
+        role: bestMatch.role,
+        campus: bestMatch.campus,
+        isFirstLogin: bestMatch.isFirstLogin,
+        assignedBuilding: bestMatch.assignedBuilding || (proctor ? proctor.assignedBuilding : null)
+      },
+      ...(student ? { student } : {}),
+      ...(proctor ? { proctor } : {})
+    });
+  } catch (err) {
+    console.error('❌ faceLogin error:', err);
+    return res.status(500).json({ success: false, message: 'Server error during face login' });
+  }
+};
+
+/**
+ * DELETE /auth/remove-face  (protected)
+ * Clears the stored face descriptor for the authenticated user.
+ */
+const removeFace = async (req, res) => {
+  try {
+    const user = await User.findById(req.user._id);
+    if (!user) {
+      return res.status(404).json({ success: false, message: 'User not found' });
+    }
+
+    user.faceDescriptor = null;
+    user.faceRegisteredAt = null;
+    await user.save();
+
+    console.log(`🗑️  Face removed for user: ${user.userID}`);
+    return res.json({ success: true, message: 'Face data removed successfully' });
+  } catch (err) {
+    console.error('❌ removeFace error:', err);
+    return res.status(500).json({ success: false, message: 'Server error during face removal' });
+  }
+};
+
 module.exports = {
   loginUser,
   changePassword,
   updateProfilePicture,
   updateProfile,
-  me
+  me,
+  registerFace,
+  faceLogin,
+  removeFace
 };
