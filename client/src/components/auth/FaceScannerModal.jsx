@@ -1,7 +1,18 @@
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { FaTimes, FaCamera, FaSpinner, FaExclamationTriangle, FaCheckCircle } from 'react-icons/fa';
 
-export default function FaceScannerModal({ isOpen, onClose, onScanComplete, title = "Face Recognition Scanner" }) {
+// Euclidean distance helper for client-side matching
+function euclideanDistance(a, b) {
+  if (!a || !b || a.length !== b.length) return Infinity;
+  let sum = 0;
+  for (let i = 0; i < a.length; i++) {
+    const diff = a[i] - b[i];
+    sum += diff * diff;
+  }
+  return Math.sqrt(sum);
+}
+
+export default function FaceScannerModal({ isOpen, onClose, onScanComplete, title = "Face Recognition Scanner", profilePictureUrl = null }) {
   const [status, setStatus] = useState("loading"); // loading, scanning, success, error
   const [message, setMessage] = useState("Loading AI Face Recognition Models...");
   const [errorMsg, setErrorMsg] = useState("");
@@ -9,10 +20,12 @@ export default function FaceScannerModal({ isOpen, onClose, onScanComplete, titl
   const streamRef = useRef(null);
   const animationFrameRef = useRef(null);
   const faceApiLoadedRef = useRef(false);
+  
   // Refs to avoid stale closures inside the rAF detection loop
   const statusRef = useRef("loading");
   const isOpenRef = useRef(isOpen);
   const doneRef = useRef(false); // prevent onScanComplete firing twice
+  const profileDescriptorRef = useRef(null);
 
   // Keep refs in sync with state/props
   useEffect(() => { isOpenRef.current = isOpen; }, [isOpen]);
@@ -22,6 +35,7 @@ export default function FaceScannerModal({ isOpen, onClose, onScanComplete, titl
     if (!isOpen) return;
 
     doneRef.current = false;
+    profileDescriptorRef.current = null;
     setStatusSynced("loading");
     setMessage("Loading AI Face Recognition Models...");
     setErrorMsg("");
@@ -59,7 +73,7 @@ export default function FaceScannerModal({ isOpen, onClose, onScanComplete, titl
     streamRef.current = null;
   };
 
-  const startCameraAndAI = async () => {
+  const startCameraStream = async () => {
     try {
       setMessage("Starting Web Camera...");
       const stream = await navigator.mediaDevices.getUserMedia({
@@ -69,15 +83,6 @@ export default function FaceScannerModal({ isOpen, onClose, onScanComplete, titl
       if (videoRef.current) videoRef.current.srcObject = stream;
 
       setStatusSynced("scanning");
-      setMessage("Initializing AI Face Detection...");
-
-      const MODEL_URL = "https://cdn.jsdelivr.net/gh/cydni/face-api.js-models@master/";
-      await Promise.all([
-        window.faceapi.nets.ssdMobilenetv1.loadFromUri(MODEL_URL),
-        window.faceapi.nets.faceLandmark68Net.loadFromUri(MODEL_URL),
-        window.faceapi.nets.faceRecognitionNet.loadFromUri(MODEL_URL)
-      ]);
-
       setMessage("Align your face in the camera circle...");
       detectFaceLoop();
     } catch (err) {
@@ -86,8 +91,63 @@ export default function FaceScannerModal({ isOpen, onClose, onScanComplete, titl
       if (err.name === "NotAllowedError" || err.name === "PermissionDeniedError") {
         setErrorMsg("Camera access denied. Please allow camera permissions in your browser.");
       } else {
-        setErrorMsg("Could not load camera or AI models. Please try again.");
+        setErrorMsg("Could not load camera. Please check camera connections and try again.");
       }
+    }
+  };
+
+  const startCameraAndAI = async () => {
+    try {
+      setMessage("Loading AI Models...");
+      const MODEL_URL = "https://cdn.jsdelivr.net/npm/@vladmandic/face-api/model/";
+      await Promise.all([
+        window.faceapi.nets.ssdMobilenetv1.loadFromUri(MODEL_URL),
+        window.faceapi.nets.faceLandmark68Net.loadFromUri(MODEL_URL),
+        window.faceapi.nets.faceRecognitionNet.loadFromUri(MODEL_URL)
+      ]);
+
+      if (profilePictureUrl) {
+        setStatusSynced("loading");
+        setMessage("Extracting profile image biometrics...");
+        
+        const img = new Image();
+        img.crossOrigin = "anonymous";
+        img.src = profilePictureUrl;
+        
+        img.onload = async () => {
+          try {
+            const detection = await window.faceapi
+              .detectSingleFace(img)
+              .withFaceLandmarks()
+              .withFaceDescriptor();
+
+            if (!detection) {
+              setStatusSynced("error");
+              setErrorMsg("Unable to detect a face in your profile photo. Please upload a clear headshot image first.");
+              return;
+            }
+
+            profileDescriptorRef.current = Array.from(detection.descriptor);
+            console.log("✅ Profile picture descriptor loaded on client successfully");
+            await startCameraStream();
+          } catch (err) {
+            console.error("Profile picture face detection error:", err);
+            setStatusSynced("error");
+            setErrorMsg("Failed to process profile picture biometrics.");
+          }
+        };
+
+        img.onerror = () => {
+          setStatusSynced("error");
+          setErrorMsg("Failed to load profile photo from server. Check your connection.");
+        };
+      } else {
+        await startCameraStream();
+      }
+    } catch (err) {
+      console.error(err);
+      setStatusSynced("error");
+      setErrorMsg("Could not load AI models. Check internet connection.");
     }
   };
 
@@ -109,6 +169,17 @@ export default function FaceScannerModal({ isOpen, onClose, onScanComplete, titl
         .withFaceDescriptor();
 
       if (detection && !doneRef.current) {
+        // Client side 1-to-1 matching if profileDescriptorRef is loaded
+        if (profileDescriptorRef.current) {
+          const dist = euclideanDistance(Array.from(detection.descriptor), profileDescriptorRef.current);
+          console.log(`🔍 Client match distance: ${dist.toFixed(4)}`);
+          if (dist > 0.6) {
+            setMessage("Face does not match profile picture. Keep scanning...");
+            animationFrameRef.current = requestAnimationFrame(detectFaceLoop);
+            return;
+          }
+        }
+
         doneRef.current = true;
         setMessage("Analyzing facial features...");
         setStatusSynced("success");
@@ -168,7 +239,7 @@ export default function FaceScannerModal({ isOpen, onClose, onScanComplete, titl
           {status === 'loading' && (
             <div className="absolute inset-0 flex flex-col items-center justify-center p-4 text-center">
               <FaSpinner className="w-12 h-12 text-blue-500 animate-spin mb-4" />
-              <p className="text-sm font-medium text-slate-300">Initializing AI Models...</p>
+              <p className="text-sm font-medium text-slate-300">Initializing Biometrics...</p>
             </div>
           )}
 

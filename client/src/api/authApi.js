@@ -168,10 +168,10 @@ const authApi = {
 
   // ── Face Recognition ────────────────────────────────────────────────────────
 
-  /** Login using a face descriptor array (128 floats from face-api.js) */
-  faceLogin: async (descriptor) => {
+  /** Login using a face descriptor array (128 floats from face-api.js) and optional userId */
+  faceLogin: async (descriptor, userId) => {
     try {
-      const response = await api.post('/auth/face-login', { descriptor });
+      const response = await api.post('/auth/face-login', { descriptor, userId });
       if (response.data.token) {
         localStorage.setItem('token', response.data.token);
         localStorage.setItem('user', JSON.stringify(response.data.user || {
@@ -185,6 +185,17 @@ const authApi = {
     } catch (error) {
       const serverMsg = error.response?.data?.message || error.message;
       console.error('❌ Face login failed:', serverMsg);
+      throw error;
+    }
+  },
+
+  /** Get profile picture and face status by user ID / UGR */
+  getProfilePicture: async (userId) => {
+    try {
+      const response = await api.get(`/auth/profile-picture/${encodeURIComponent(userId)}`);
+      return response.data;
+    } catch (error) {
+      console.error('❌ Failed to get profile picture:', error);
       throw error;
     }
   },

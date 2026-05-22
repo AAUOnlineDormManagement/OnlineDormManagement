@@ -384,13 +384,14 @@ const registerFace = async (req, res) => {
 
 /**
  * POST /auth/face-login  (public)
- * Body: { descriptor: number[] }
- * Finds best match among all users with a stored face descriptor.
- * Uses Euclidean distance threshold of 0.6 (standard for face-api.js).
+ * Body: { descriptor: number[], userId?: string }
+ * If userId is provided, performs a 1-to-1 match for that user.
+ * If user has no faceDescriptor but has a profilePicture, registers the descriptor and logs them in.
+ * If userId is not provided, performs a 1-to-many match among all registered faces.
  */
 const faceLogin = async (req, res) => {
   try {
-    const { descriptor } = req.body;
+    const { descriptor, userId } = req.body;
 
     if (!Array.isArray(descriptor) || descriptor.length !== 128) {
       return res.status(400).json({
@@ -399,38 +400,88 @@ const faceLogin = async (req, res) => {
       });
     }
 
-    // Fetch all users that have a registered face (only pull descriptor + auth fields)
-    const users = await User.find(
-      { faceDescriptor: { $exists: true, $ne: null, $not: { $size: 0 } } }
-    ).select('userID name email role campus isFirstLogin assignedBuilding faceDescriptor');
-
-    if (!users.length) {
-      return res.status(401).json({
-        success: false,
-        message: 'No faces are registered in the system yet.'
-      });
-    }
-
-    // Find the closest match
-    const THRESHOLD = 0.6;
     let bestMatch = null;
     let bestDistance = Infinity;
+    const THRESHOLD = 0.6;
 
-    for (const u of users) {
-      const dist = euclideanDistance(descriptor, u.faceDescriptor);
-      if (dist < bestDistance) {
-        bestDistance = dist;
-        bestMatch = u;
+    if (userId && String(userId).trim()) {
+      const trimmedUserId = String(userId).trim();
+      // Find the user by ID
+      let targetUser = await User.findOne({ userID: trimmedUserId });
+      if (!targetUser) {
+        const normalizedUgr = normalizeUgrInput(trimmedUserId);
+        if (normalizedUgr) {
+          targetUser = await User.findOne({ userID: normalizedUgr });
+        }
       }
-    }
+      if (!targetUser) {
+        const escaped = escapeRegex(trimmedUserId);
+        targetUser = await User.findOne({
+          $or: [
+            { userID: { $regex: new RegExp('^' + escaped + '$', 'i') } },
+            { email: { $regex: new RegExp('^' + escaped + '$', 'i') } }
+          ]
+        });
+      }
 
-    console.log(`🔍 Face login — best distance: ${bestDistance.toFixed(4)}, threshold: ${THRESHOLD}`);
+      if (!targetUser) {
+        return res.status(404).json({ success: false, message: 'User not found' });
+      }
 
-    if (!bestMatch || bestDistance > THRESHOLD) {
-      return res.status(401).json({
-        success: false,
-        message: 'Face not recognized. Please try again or use your password.'
-      });
+      if (targetUser.faceDescriptor && targetUser.faceDescriptor.length === 128) {
+        const dist = euclideanDistance(descriptor, targetUser.faceDescriptor);
+        console.log(`🔍 Face login 1-to-1 match — distance: ${dist.toFixed(4)}, threshold: ${THRESHOLD}`);
+        if (dist > THRESHOLD) {
+          return res.status(401).json({
+            success: false,
+            message: 'Face not recognized. Please try again or use your password.'
+          });
+        }
+        bestMatch = targetUser;
+        bestDistance = dist;
+      } else if (targetUser.profilePicture) {
+        // Auto-register descriptor matching the client-side profile picture validation
+        targetUser.faceDescriptor = descriptor;
+        targetUser.faceRegisteredAt = new Date();
+        await targetUser.save();
+        bestMatch = targetUser;
+        bestDistance = 0.0;
+        console.log(`✅ Face descriptor registered automatically from profile picture for: ${targetUser.userID}`);
+      } else {
+        return res.status(400).json({
+          success: false,
+          message: 'No face biometrics or profile picture registered for this account.'
+        });
+      }
+    } else {
+      // General 1-to-many match
+      const users = await User.find(
+        { faceDescriptor: { $exists: true, $ne: null, $not: { $size: 0 } } }
+      ).select('userID name email role campus isFirstLogin assignedBuilding faceDescriptor');
+
+      if (!users.length) {
+        return res.status(401).json({
+          success: false,
+          message: 'No faces are registered in the system yet.'
+        });
+      }
+
+      for (const u of users) {
+        const dist = euclideanDistance(descriptor, u.faceDescriptor);
+        if (dist < bestDistance) {
+          bestDistance = dist;
+          bestMatch = u;
+        }
+      }
+
+      console.log(`🔍 Face login — best distance: ${bestDistance.toFixed(4)}, threshold: ${THRESHOLD}`);
+
+      if (!bestMatch || bestDistance > THRESHOLD) {
+        return res.status(401).json({
+          success: false,
+          message: 'Face not recognized. Please try again or use your password.'
+        });
+      }
     }
 
     // Issue JWT — same payload as password login
@@ -508,6 +559,50 @@ const removeFace = async (req, res) => {
   }
 };
 
+/**
+ * GET /auth/profile-picture/:userId
+ * Public endpoint to fetch profile picture and biometric status of a user by their UGR/userID.
+ */
+const getProfilePicture = async (req, res) => {
+  try {
+    const { userId } = req.params;
+    if (!userId) {
+      return res.status(400).json({ success: false, message: 'User ID is required' });
+    }
+
+    let user = await User.findOne({ userID: userId.trim() });
+    if (!user) {
+      const normalizedUgr = normalizeUgrInput(userId);
+      if (normalizedUgr) {
+        user = await User.findOne({ userID: normalizedUgr });
+      }
+    }
+    if (!user) {
+      const escaped = escapeRegex(userId);
+      user = await User.findOne({
+        $or: [
+          { userID: { $regex: new RegExp('^' + escaped + '$', 'i') } },
+          { email: { $regex: new RegExp('^' + escaped + '$', 'i') } }
+        ]
+      });
+    }
+
+    if (!user) {
+      return res.status(404).json({ success: false, message: 'User not found' });
+    }
+
+    return res.json({
+      success: true,
+      userID: user.userID,
+      profilePicture: user.profilePicture,
+      faceRegistered: !!(user.faceDescriptor && user.faceDescriptor.length === 128)
+    });
+  } catch (err) {
+    console.error('❌ getProfilePicture error:', err);
+    return res.status(500).json({ success: false, message: 'Server error fetching profile picture' });
+  }
+};
+
 module.exports = {
   loginUser,
   changePassword,
@@ -516,5 +611,6 @@ module.exports = {
   me,
   registerFace,
   faceLogin,
-  removeFace
+  removeFace,
+  getProfilePicture
 };

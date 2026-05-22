@@ -12,13 +12,15 @@ import {
   FaRegCalendarCheck,
   FaRegBell,
   FaRegClock,
-  FaHome
+  FaHome,
+  FaTimes
 } from 'react-icons/fa';
 import { MdAdminPanelSettings, MdPrivacyTip, MdOutlineSecurity, MdFace } from 'react-icons/md';
 import { FaFileContract } from 'react-icons/fa';
 import authApi from '../api/authApi';
 import logoImg from '../assets/logo/logo.png';
 import FaceScannerModal from '../components/auth/FaceScannerModal';
+import { getUploadBaseUrl } from '../utils/apiConfig';
 
 export default function Login() {
   const navigate = useNavigate();
@@ -28,6 +30,14 @@ export default function Login() {
   const [error, setError] = useState('');
   const [showFaceScanner, setShowFaceScanner] = useState(false);
   const [faceLoading, setFaceLoading] = useState(false);
+
+  // Biometrics and UGR scanning states
+  const [showUgrPrompt, setShowUgrPrompt] = useState(false);
+  const [ugrInput, setUgrInput] = useState('');
+  const [checkingUgr, setCheckingUgr] = useState(false);
+  const [profilePictureUrl, setProfilePictureUrl] = useState(null);
+  const [userIdForLogin, setUserIdForLogin] = useState('');
+  const [promptError, setPromptError] = useState('');
 
   const handleInputChange = (e) => {
     const { name, value } = e.target;
@@ -140,12 +150,60 @@ export default function Login() {
   };
 
   // ── Face Recognition Login ──────────────────────────────────────────────────
+  const handleFaceLoginStart = () => {
+    setUgrInput(formData.userId || '');
+    setPromptError('');
+    setError('');
+    setShowUgrPrompt(true);
+  };
+
+  const handleUgrSubmit = async (e) => {
+    e.preventDefault();
+    if (!ugrInput.trim()) {
+      setPromptError('Please enter your User ID / Student ID.');
+      return;
+    }
+
+    setCheckingUgr(true);
+    setPromptError('');
+    try {
+      const response = await authApi.getProfilePicture(ugrInput.trim());
+      if (response.success) {
+        if (!response.faceRegistered && !response.profilePicture) {
+          setPromptError('No profile picture or face biometrics registered. Please upload a profile picture in your settings first.');
+          setCheckingUgr(false);
+          return;
+        }
+
+        setUserIdForLogin(response.userID);
+
+        if (response.profilePicture) {
+          const uploadBase = getUploadBaseUrl();
+          const profilePicPath = response.profilePicture;
+          const fullUrl = `${uploadBase}/${profilePicPath.replace(/^\//, '')}`;
+          setProfilePictureUrl(fullUrl);
+        } else {
+          setProfilePictureUrl(null);
+        }
+
+        setShowUgrPrompt(false);
+        setShowFaceScanner(true);
+      }
+    } catch (err) {
+      console.error(err);
+      const serverMsg = err.response?.data?.message || err.message || 'User not found. Please check your User ID.';
+      setPromptError(serverMsg);
+    } finally {
+      setCheckingUgr(false);
+    }
+  };
+
   const handleFaceScanComplete = async (descriptor) => {
     setShowFaceScanner(false);
     setFaceLoading(true);
     setError('');
     try {
-      const response = await authApi.faceLogin(descriptor);
+      const response = await authApi.faceLogin(descriptor, userIdForLogin);
       const role = response.role || '';
 
       const searchParams = new URLSearchParams(window.location.search);
@@ -398,7 +456,7 @@ export default function Login() {
                 {/* Face Recognition Login Button */}
                 <button
                   type="button"
-                  onClick={() => setShowFaceScanner(true)}
+                  onClick={handleFaceLoginStart}
                   disabled={isLoading || faceLoading}
                   className="w-full bg-gradient-to-r from-slate-800 to-slate-900 hover:from-slate-900 hover:to-black text-white font-semibold py-3.5 px-4 rounded-xl flex items-center justify-center gap-3 transition-all duration-200 shadow-lg shadow-slate-300 hover:shadow-xl hover:-translate-y-0.5 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:translate-y-0"
                 >
@@ -427,10 +485,108 @@ export default function Login() {
               {/* Face Scanner Modal */}
               <FaceScannerModal
                 isOpen={showFaceScanner}
-                onClose={() => setShowFaceScanner(false)}
+                onClose={() => {
+                  setShowFaceScanner(false);
+                  setUserIdForLogin('');
+                  setProfilePictureUrl(null);
+                }}
                 onScanComplete={handleFaceScanComplete}
                 title="Face Recognition Login"
+                profilePictureUrl={profilePictureUrl}
               />
+
+              {/* User ID / UGR Prompt Modal */}
+              {showUgrPrompt && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/80 backdrop-blur-md transition-all duration-300 p-4">
+                  <div className="relative w-full max-w-md bg-slate-950 border border-slate-800 rounded-3xl p-6 text-white shadow-2xl flex flex-col">
+                    {/* Close Button */}
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setShowUgrPrompt(false);
+                        setPromptError('');
+                      }}
+                      className="absolute top-4 right-4 p-2 rounded-full bg-slate-900 hover:bg-slate-800 border border-slate-800/80 transition-colors text-slate-400 hover:text-white"
+                    >
+                      <FaTimes className="w-4 h-4" />
+                    </button>
+
+                    {/* Title */}
+                    <h3 className="text-xl font-bold tracking-tight mb-1 mt-2 text-center text-blue-400">
+                      Face Scan Login
+                    </h3>
+                    <p className="text-xs text-slate-400 text-center mb-6">
+                      Enter your User ID to verify and load biometrics
+                    </p>
+
+                    <form onSubmit={handleUgrSubmit} className="space-y-4">
+                      {/* Input Field */}
+                      <div className="space-y-2">
+                        <label htmlFor="promptUgr" className="block text-sm font-medium text-slate-300">
+                          User ID / Student ID
+                        </label>
+                        <div className="relative group">
+                          <div className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-blue-500 transition-colors">
+                            <FaUserGraduate className="w-4 h-4" />
+                          </div>
+                          <input
+                            id="promptUgr"
+                            type="text"
+                            value={ugrInput}
+                            onChange={(e) => {
+                              setUgrInput(e.target.value);
+                              if (promptError) setPromptError('');
+                            }}
+                            className="w-full pl-11 pr-4 py-3.5 rounded-xl border border-slate-800 focus:border-blue-500 focus:ring-4 focus:ring-blue-950 transition-all text-sm bg-slate-900 text-white placeholder-slate-500"
+                            placeholder="e.g., UGR/0000/00"
+                            disabled={checkingUgr}
+                            autoFocus
+                          />
+                        </div>
+                      </div>
+
+                      {/* Error Msg */}
+                      {promptError && (
+                        <div className="bg-red-950/40 border border-red-900/50 text-red-200 text-xs px-4 py-3 rounded-xl flex items-center gap-2">
+                          <span className="w-1.5 h-1.5 bg-red-500 rounded-full shrink-0"></span>
+                          <span>{promptError}</span>
+                        </div>
+                      )}
+
+                      {/* Actions */}
+                      <div className="flex gap-3 pt-2">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setShowUgrPrompt(false);
+                            setPromptError('');
+                          }}
+                          disabled={checkingUgr}
+                          className="flex-1 py-3 px-4 rounded-xl border border-slate-800 hover:bg-slate-900 text-slate-300 font-semibold transition-all text-sm text-center disabled:opacity-50"
+                        >
+                          Cancel
+                        </button>
+                        <button
+                          type="submit"
+                          disabled={checkingUgr}
+                          className="flex-1 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white font-semibold py-3 px-4 rounded-xl flex items-center justify-center gap-2 transition-all duration-200 shadow-lg shadow-blue-900/50 disabled:opacity-50"
+                        >
+                          {checkingUgr ? (
+                            <>
+                              <span className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                              <span>Verifying...</span>
+                            </>
+                          ) : (
+                            <>
+                              <span>Verify & Scan</span>
+                            </>
+                          )}
+                        </button>
+                      </div>
+                    </form>
+                  </div>
+                </div>
+              )}
             </div>
 
             {/* Mobile Help Text */}
