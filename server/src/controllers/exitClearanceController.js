@@ -36,10 +36,10 @@ const requestExit = async (req, res) => {
             if (studentRoom && studentRoom.building) {
                 // Find all proctors in this building
                 const proctorDocs = await Proctor.find({ assignedBuilding: studentRoom.building._id }).populate('user');
-                
+
                 // Filter proctors by the student's gender (based on their User profile)
                 const targetProctors = proctorDocs.filter(p => p.user && p.user.gender === (student.user?.gender || student.gender));
-                
+
                 for (const proctorDoc of targetProctors) {
                     await createNotification({
                         user: proctorDoc.user._id,
@@ -109,13 +109,13 @@ const getPendingRequests = async (req, res) => {
                         .populate('building');
                     if (studentRoom && studentRoom.building &&
                         studentRoom.building._id.toString() === buildingId.toString()) {
-                        
+
                         // Add virtual fields for frontend convenience
                         const clearanceObj = clearance.toObject();
                         clearanceObj.roomNumber = studentRoom.roomNumber;
                         clearanceObj.buildingName = studentRoom.building.name;
                         clearanceObj.blockName = studentRoom.building.name;
-                        
+
                         authRequests.push(clearanceObj);
                     }
                 }
@@ -172,7 +172,7 @@ const approveRequest = async (req, res) => {
         // Find student's building (already declared studentRoom above, just update it with populate)
         const student = await Student.findById(clearance.student).populate('user');
         const studentRoomWithBuilding = await Room.findOne({ assignedStudents: student?._id }).populate('building');
-        
+
         const itemList = clearance.items.map(item => `${item.name} (x${item.quantity})`).join(', ');
         const campus = studentRoomWithBuilding?.building?.campus || 'Main';
         const department = student?.department || 'N/A';
@@ -282,8 +282,8 @@ const verifyQR = async (req, res) => {
             } catch (e) {
                 console.error('JSON Parse Error in verifyQR:', e);
             }
-        } 
-        
+        }
+
         // Fallback: Formatted Text format
         if (!id && qrPayload.includes('[AAU')) {
             const lines = qrPayload.split('\n');
@@ -293,10 +293,9 @@ const verifyQR = async (req, res) => {
 
         if (!id) return res.status(400).json({ message: 'Could not decode QR payload. Invalid format.' });
 
-        const clearance = await ExitClearance.findById(id).populate({
-            path: 'student',
-            populate: { path: 'user', select: 'name userID' }
-        });
+        const clearance = await ExitClearance.findById(id)
+            .populate({ path: 'student', populate: { path: 'user', select: 'name userID gender year department' } })
+            .populate({ path: 'proctor', select: 'name userID' });
 
         if (!clearance) {
             return res.status(404).json({ message: 'Clearance record not found' });
@@ -306,12 +305,99 @@ const verifyQR = async (req, res) => {
             return res.status(400).json({ message: 'Clearance is not approved', valid: false });
         }
 
+        // Fetch room/building details for display
+        const student = clearance.student;
+        const studentUser = student?.user || {};
+        const studentRoom = await Room.findOne({ assignedStudents: student._id }).populate('building');
+
+        const buildingName = studentRoom?.building?.name || 'N/A';
+        const roomNumber = studentRoom?.roomNumber || 'N/A';
+        const blockName = studentRoom?.building?.name || 'N/A';
+        const department = student.department || studentUser.department || 'N/A';
+        const year = student.year || 'N/A';
+        const proctorName = (clearance.proctor && (clearance.proctor.name || clearance.proctor.userID)) || 'N/A';
+        const approvalDate = clearance.approvalDate ? clearance.approvalDate.toLocaleString() : 'N/A';
+
+        // Determine if client prefers HTML (scanner UI) or JSON (API)
+        const wantsHtml = (req.headers.accept && req.headers.accept.includes('text/html')) || req.query.view === 'html' || req.body.format === 'html';
+
+        if (wantsHtml) {
+            // Basic XSS escaping
+            const escapeHtml = (str) => String(str || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+
+            // Logo URL (can be configured via env var UNIVERSITY_LOGO_URL)
+            const logoUrl = process.env.UNIVERSITY_LOGO_URL || '/uploads/logo.png';
+
+            const itemsList = (clearance.items || []).map(it => `<li>${escapeHtml(it.name)} <span style="font-weight:600">x${escapeHtml(it.quantity)}</span></li>`).join('');
+
+            const html = `<!doctype html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width,initial-scale=1">
+    <title>Exit Clearance</title>
+    <style>
+        body{font-family:Inter,system-ui,Segoe UI,Arial,sans-serif;background:#f6f8fb;color:#0f172a;margin:0;padding:20px}
+        .card{max-width:720px;margin:20px auto;padding:24px;background:#fff;border-radius:12px;box-shadow:0 6px 20px rgba(2,6,23,0.08)}
+        .header{display:flex;align-items:center;gap:12px}
+        .logo{width:56px;height:56px;border-radius:8px;background:#0ea5a9;display:flex;align-items:center;justify-content:center;color:#fff;font-weight:700}
+        h1{margin:0;font-size:20px}
+        .meta{color:#475569;margin-top:6px}
+        .grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:16px}
+        .section{background:#f8fafc;padding:12px;border-radius:8px}
+        ul{margin:0;padding-left:18px}
+        .footer{margin-top:18px;color:#334155;font-size:13px}
+    </style>
+</head>
+<body>
+        <div class="card">
+        <div class="header">
+            ${logoUrl ? `<img src="${escapeHtml(logoUrl)}" class="logo-img" alt="logo"/>` : '<div class="logo">AAU</div>'}
+            <div>
+                <h1>Exit Clearance — ${escapeHtml(studentUser.name || student.fullName || 'Student')}</h1>
+                <div class="meta">UGR: ${escapeHtml(studentUser.userID || student.studentID || 'N/A')} • ${escapeHtml(department)} • Year ${escapeHtml(year)}</div>
+            </div>
+        </div>
+
+        <div class="grid">
+            <div class="section">
+                <strong>Accommodation</strong>
+                <div>Block: ${escapeHtml(blockName)}</div>
+                <div>Room: ${escapeHtml(roomNumber)}</div>
+            </div>
+            <div class="section">
+                <strong>Approved By</strong>
+                <div>${escapeHtml(proctorName)}</div>
+                <div class="meta">Date: ${escapeHtml(approvalDate)}</div>
+            </div>
+        </div>
+
+        <div style="margin-top:16px">
+            <strong>Items</strong>
+            <ul>
+                ${itemsList || '<li>No items listed</li>'}
+            </ul>
+        </div>
+
+        <div class="footer">
+            Show this screen to security when exiting. Clearance ID: ${escapeHtml(clearance._id.toString())}
+        </div>
+    </div>
+</body>
+</html>`;
+
+            res.set('Content-Type', 'text/html').send(html);
+            return;
+        }
+
+        // Default: JSON for API clients
         res.json({
             message: 'Valid Clearance',
             valid: true,
             student: clearance.student,
             items: clearance.items,
-            approvalDate: clearance.approvalDate
+            approvalDate: clearance.approvalDate,
+            proctor: clearance.proctor
         });
     } catch (error) {
         res.status(500).json({ message: 'Server error', error: error.message });
